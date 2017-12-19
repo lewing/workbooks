@@ -9,11 +9,24 @@ using Xamarin.Interactive.PropertyEditor;
 using Xamarin.PropertyEditing.Drawing;
 
 using Xamarin.Interactive.Representations;
+using System;
 
 namespace Xamarin.Interactive.Client.PropertyEditor
 {
-   class CommonPropertyViewHelper : IPropertyViewHelper
+    class CommonPropertyViewHelper : IPropertyViewHelper
     {
+        public virtual bool IsConvertable (Type type)
+        {
+            if (type == typeof (CommonSize)
+                || type == typeof (CommonPoint)
+                || type == typeof (CommonRectangle)
+                || type == typeof (CommonColor)
+                || type == typeof (CommonThickness))
+                return true;
+
+            return false;
+        }
+
         public virtual object ToLocalValue (object local)
         {
             switch (local) {
@@ -28,7 +41,7 @@ namespace Xamarin.Interactive.Client.PropertyEditor
             case Point point:
                 return new CommonPoint (point.X, point.Y);
             case Thickness thickness:
-                return new CommonThickness (thickness.Left, thickness.Top, thickness.Right, thickness.Bottom);
+                return new CommonThickness (left: thickness.Left, top: thickness.Top, right: thickness.Right, bottom: thickness.Bottom);
             default:
                 return local;
             }
@@ -46,7 +59,7 @@ namespace Xamarin.Interactive.Client.PropertyEditor
             case CommonPoint point:
                 return new Point (point.X, point.Y);
             case CommonThickness thickness:
-                return new Thickness (thickness.Left, thickness.Top, thickness.Right, thickness.Bottom);
+                return new Thickness (left: thickness.Left, top: thickness.Top, right: thickness.Right, bottom: thickness.Bottom);
             default:
                 return local;
             }

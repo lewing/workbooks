@@ -38,7 +38,7 @@ namespace Xamarin.Interactive.Client.Mac
                 return;
 
             if (propertyEditor.EditorProvider == null)
-                propertyEditor.EditorProvider = new InteractiveEditorProvider (Session, new MacPropertyHelper ());
+                propertyEditor.EditorProvider = new InteractiveEditorProvider (Session, new CommonPropertyHelper ());
 
             InteractiveObject properties = null;
             try {

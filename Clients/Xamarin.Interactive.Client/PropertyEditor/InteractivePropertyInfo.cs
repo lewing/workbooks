@@ -94,12 +94,12 @@ namespace Xamarin.Interactive.PropertyEditor
             var value = UnpackValue (representation, Editor);
             var valueType = value?.GetType ();
 
-            var hasValues = isResolvedEnum || isEnumValue;
-
             if (type == null && isEnumValue)
                 type = valueType;
             else if (type != valueType && valueType != null && !isResolvedEnum && valueType != typeof (string))
                 type = valueType;
+
+            var hasEditor = isResolvedEnum || isEnumValue || Editor.PropertyHelper.IsConvertable (type);
 
             var browsable = info?.GetCustomAttribute<DebuggerBrowsableAttribute> ();
             if (browsable != null && browsable.State == DebuggerBrowsableState.Never) {
@@ -108,7 +108,7 @@ namespace Xamarin.Interactive.PropertyEditor
             }
 
             Type = type;
-            CanWrite = member.CanWrite && (hasValues || (member.MemberType.Name == type?.FullName));
+            CanWrite = member.CanWrite && type != null && (hasEditor || (member.MemberType.Name == type?.FullName));
         }
 
         public virtual TValue ToLocalValue<TValue> ()

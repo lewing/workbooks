@@ -33,10 +33,14 @@ namespace Xamarin.Interactive.Wpf
                     ),
                     true));
 
-            RegisterHandler<SW.Size> (s => new XIR.Size (s.Width, s.Height));
-            RegisterHandler<SW.Rect> (r => new XIR.Rectangle (r.X, r.Y, r.Width, r.Height));
-            RegisterHandler<SW.Point> (p => new XIR.Point (p.X, p.Y));
-            RegisterHandler<SW.Thickness> (t => new XIR.Thickness (t.Left, t.Top, t.Right, t.Bottom));
+            RegisterHandler<SW.Size> (s => new XIR.Representation (
+                new XIR.Size (s.Width, s.Height), true));
+            RegisterHandler<SW.Rect> (r => new XIR.Representation (
+                new XIR.Rectangle (r.X, r.Y, r.Width, r.Height), true));
+            RegisterHandler<SW.Point> (p => new XIR.Representation (
+                new XIR.Point (p.X, p.Y), true));
+            RegisterHandler<SW.Thickness> (t => new XIR.Representation (
+                new XIR.Thickness (t.Left, t.Top, t.Right, t.Bottom), true));
 
             RegisterHandler<BitmapSource> (NativeExtensions.RemoteRepresentation);
         }
@@ -99,7 +103,7 @@ namespace Xamarin.Interactive.Wpf
                 null,
                 buffer,
                 components * image.Width).RemoteRepresentation ();
-         }
+        }
 
         public override bool TryConvertFromRepresentation (
             IRepresentedType representedType,
@@ -120,7 +124,11 @@ namespace Xamarin.Interactive.Wpf
                 representedType,
                 representations,
                 out var rectangle)) {
-                represented = new SW.Rect (rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+                represented = new SW.Rect (
+                    rectangle.X,
+                    rectangle.Y,
+                    rectangle.Width,
+                    rectangle.Height);
                 return true;
             }
 
