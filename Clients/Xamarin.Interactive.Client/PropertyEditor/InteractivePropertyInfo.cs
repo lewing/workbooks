@@ -186,7 +186,11 @@ namespace Xamarin.Interactive.PropertyEditor
                 return UnpackValue (interactiveRepresentation, editor);
             case InteractiveEnumerable source:
                 var name = TypeHelper.GetCSharpTypeName (source.RepresentedType.Name);
-                return Catalog.GetString($"{name} - {source.Count} items");
+                return Catalog.Format (Catalog.GetString (
+                    "{0} - {1} items",
+                    comment: "{0} is a CLR type name; {1} is a count (integer) of items"),
+                    name,
+                    source.Count);
             case Image image:
                 return Catalog.GetString ("not represented");
             default:
