@@ -125,7 +125,7 @@ namespace Xamarin.Interactive.Unified
                 representedType,
                 representations,
                 out var size)) {
-                represented = new CGPoint (
+                represented = new CGSize (
                     size.Width,
                     size.Height);
                 return true;

@@ -98,22 +98,15 @@ namespace Xamarin.Interactive.PropertyEditor
 
             if (type == null && isEnumValue)
                 type = valueType;
-            else if (type != null && type != valueType && valueType != null && !isResolvedEnum)
+            else if (type != valueType && valueType != null && !isResolvedEnum && valueType != typeof (string))
                 type = valueType;
 
             var browsable = info?.GetCustomAttribute<DebuggerBrowsableAttribute> ();
             if (browsable != null && browsable.State == DebuggerBrowsableState.Never) {
                 // clear the type so we won't inspect it
                 type = null;
-            } else if (type == null) {
-                switch (value) {
-                case string _:
-                case bool _:
-                case double _:
-                    type = value.GetType ();
-                    break;
-                }
             }
+
             Type = type;
             CanWrite = member.CanWrite && (hasValues || (member.MemberType.Name == type?.FullName));
         }
@@ -193,9 +186,9 @@ namespace Xamarin.Interactive.PropertyEditor
                 return UnpackValue (interactiveRepresentation, editor);
             case InteractiveEnumerable source:
                 var name = TypeHelper.GetCSharpTypeName (source.RepresentedType.Name);
-                return $"{name} - {source.Count} items";
+                return Catalog.GetString($"{name} - {source.Count} items");
             case Image image:
-                return $"image ({image.Width},{image.Height})";
+                return Catalog.GetString ("not represented");
             default:
                 return representation;
             }
