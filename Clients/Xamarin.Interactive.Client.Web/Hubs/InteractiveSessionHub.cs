@@ -13,6 +13,7 @@ using Xamarin.Interactive.CodeAnalysis;
 using Xamarin.Interactive.CodeAnalysis.Events;
 using Xamarin.Interactive.CodeAnalysis.Models;
 using Xamarin.Interactive.NuGet;
+using Xamarin.Interactive.Representations;
 using Xamarin.Interactive.Session;
 
 namespace Xamarin.Interactive.Client.Web.Hubs
