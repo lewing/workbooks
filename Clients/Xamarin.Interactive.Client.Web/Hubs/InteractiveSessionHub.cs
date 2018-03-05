@@ -14,6 +14,7 @@ using Xamarin.Interactive.CodeAnalysis;
 using Xamarin.Interactive.CodeAnalysis.Events;
 using Xamarin.Interactive.CodeAnalysis.SignatureHelp;
 using Xamarin.Interactive.NuGet;
+using Xamarin.Interactive.Representations;
 using Xamarin.Interactive.Session;
 
 namespace Xamarin.Interactive.Client.Web.Hubs
@@ -126,6 +127,19 @@ namespace Xamarin.Interactive.Client.Web.Hubs
                 packages,
                 Context.Connection.ConnectionAbortedToken);
             return packageManagerService.GetInstalledPackages ();
+        }
+
+        public async Task<IInteractiveObject> Interact (string handle)
+        {
+            var sessionState = serviceProvider
+                .GetInteractiveSessionHubManager ()
+                .GetSession (Context.ConnectionId);
+
+            var interactiveObject = await sessionState
+                .ClientSession.Agent.Api.InteractAsync (long.Parse (handle),
+                new InteractiveObject.ReadAllMembersInteractMessage ());
+
+            return interactiveObject;
         }
     }
 }
