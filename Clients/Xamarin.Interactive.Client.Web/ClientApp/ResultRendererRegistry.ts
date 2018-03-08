@@ -10,6 +10,7 @@ import { ResultRendererFactory, ResultRenderer } from './rendering'
 
 import NullRendererFactory from './renderers/NullRenderer'
 import CalendarRendererFactory from './renderers/CalendarRenderer'
+import ColorRendererFactory from './renderers/ColorRenderer'
 import ToStringRendererFactory from './renderers/ToStringRenderer'
 import ImageRendererFactory from './renderers/ImageRenderer'
 import VerbatimHtmlRendererFactory from './renderers/VerbatimHtmlRenderer'
@@ -33,6 +34,7 @@ export class ResultRendererRegistry {
         const registry = new ResultRendererRegistry
         // More exciting and specific renderers should be first
         registry.register(CalendarRendererFactory)
+        registry.register(ColorRendererFactory)
         registry.register(ImageRendererFactory)
         registry.register(VerbatimHtmlRendererFactory)
 
