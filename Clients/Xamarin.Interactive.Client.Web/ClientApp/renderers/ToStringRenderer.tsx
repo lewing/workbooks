@@ -50,7 +50,7 @@ class ToStringRenderer implements ResultRenderer {
                     component: ToStringRepresentation,
                     componentProps: {
                         value: toStringValue
-                    },
+                    }
                 })
 
                 continue
