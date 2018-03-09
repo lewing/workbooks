@@ -9,65 +9,28 @@ import * as React from 'react';
 import { CommandBar } from 'office-ui-fabric-react/lib/CommandBar';
 import { IContextualMenuItem } from 'office-ui-fabric-react/lib/ContextualMenu';
 
-import { WorkbookTarget, DotNetSdk, WorkbookSession, ClientSessionEvent, ClientSessionEventKind } from '../WorkbookSession'
+import {
+    WorkbookTarget,
+    DotNetSdk,
+    WorkbookSession,
+    ClientSessionEvent,
+    ClientSessionEventKind
+} from '../WorkbookSession'
+
 import { WorkbookShellContext } from './WorkbookShell';
 
-const evaluateWorkbookItem: IContextualMenuItem = {
-    key: 'evaluateWorkbook',
-    name: 'Run All',
-    icon: 'Play',
-    onClick: () => { }
-}
-
-const addPackagesItem: IContextualMenuItem = {
-    key: 'addPackage',
-    name: 'NuGet',
-    icon: 'Add',
-    onClick: () => { }
-}
-
-const openWorkbookItem: IContextualMenuItem = {
-    key: 'openWorkbook',
-    name: 'Open',
-    icon: 'OpenFile',
-    onClick: () => { },
-    disabled: true,
-}
-
-const saveWorkbookItem: IContextualMenuItem = {
-    key: 'saveWorkbook',
-    name: 'Save',
-    icon: 'DownloadDocument',
-    onClick: () => { }
-}
-
-const overflowItems: IContextualMenuItem[] = [
-    openWorkbookItem,
-    saveWorkbookItem
-]
-
-const dumpDraftState: IContextualMenuItem = {
-    key: 'dumpDraftState',
-    icon: 'Rocket',
-    onClick: () => { }
-}
-
-const farItems: IContextualMenuItem[] = [
-    // dumpDraftState
-]
-
 interface WorkbookCommandBarProps {
+    shellContext: WorkbookShellContext
     evaluateWorkbook: () => void
     addPackages: () => void
     loadWorkbook: () => void
     saveWorkbook: () => void
     dumpDraftState: () => void
-    shellContext: WorkbookShellContext
 }
 
 interface WorkbookCommandBarState {
-    items: IContextualMenuItem[]
-    overflowItems: IContextualMenuItem[]
+    canOpenWorkbook: boolean
+    workbookTargetItems: IContextualMenuItem[]
 }
 
 export class WorkbookCommandBar extends React.Component<WorkbookCommandBarProps, WorkbookCommandBarState> {
@@ -77,28 +40,16 @@ export class WorkbookCommandBar extends React.Component<WorkbookCommandBarProps,
         this.onClientSessionEvent = this.onClientSessionEvent.bind(this)
 
         this.state = {
-            items: [
-                evaluateWorkbookItem,
-                addPackagesItem
-            ],
-            overflowItems
+            canOpenWorkbook: false,
+            workbookTargetItems: []
         }
-
-        evaluateWorkbookItem.onClick = props.evaluateWorkbook
-        addPackagesItem.onClick = props.addPackages
-        saveWorkbookItem.onClick = props.saveWorkbook
-        openWorkbookItem.onClick = props.loadWorkbook
-        dumpDraftState.onClick = props.dumpDraftState
     }
 
     private onClientSessionEvent(session: WorkbookSession, clientSessionEvent: ClientSessionEvent) {
-        if (clientSessionEvent.kind === ClientSessionEventKind.CompilationWorkspaceAvailable) {
-            const overflowItems = this.state.overflowItems;
-            const openWorkbookItem = overflowItems.find(mi => mi.key === "openWorkbook");
-            if (!openWorkbookItem)
-                return
-            openWorkbookItem.disabled = false;
-            this.setState({ overflowItems })
+        switch (clientSessionEvent.kind) {
+            case ClientSessionEventKind.CompilationWorkspaceAvailable:
+                this.setState({ canOpenWorkbook: true })
+                break
         }
     }
 
@@ -111,36 +62,67 @@ export class WorkbookCommandBar extends React.Component<WorkbookCommandBarProps,
     }
 
     setWorkbookTargets(targets: WorkbookTarget[]) {
-        let targetItems: IContextualMenuItem[] = []
+        let workbookTargetItems: IContextualMenuItem[] = []
         for (const target of targets)
-            targetItems.push({
+            workbookTargetItems.push({
                 key: target.id,
                 name: `${target.flavor} (${(target.sdk as any).Name})`
             })
+        this.setState({ workbookTargetItems })
+     }
 
-        this.setState({
+    render() {
+        const commandBarProps = {
             items: [
                 {
                     key: 'workbookTarget',
                     name: 'Mono: .NET Framework',
                     icon: 'CSharpLanguage',
                     subMenuProps: {
-                        items: targetItems
+                        items: this.state.workbookTargetItems
                     }
                 },
-                evaluateWorkbookItem,
-                addPackagesItem
+                {
+                    key: 'evaluateWorkbook',
+                    name: 'Run All',
+                    icon: 'Play',
+                    onClick: this.props.evaluateWorkbook
+                },
+                {
+                    key: 'addPackage',
+                    name: 'NuGet',
+                    icon: 'Add',
+                    onClick: this.props.addPackages
+                }
+            ],
+            overflowItems: [
+                {
+                    key: 'openWorkbook',
+                    name: 'Open',
+                    icon: 'OpenFile',
+                    disabled: !this.state.canOpenWorkbook,
+                    onClick: this.props.loadWorkbook
+                },
+                {
+                    key: 'saveWorkbook',
+                    name: 'Save',
+                    icon: 'DownloadDocument',
+                    onClick: this.props.saveWorkbook
+                }
+            ],
+            farItems: [
+                {
+                    key: 'dumpDraftState',
+                    icon: 'Rocket',
+                    onClick: this.props.dumpDraftState
+                }
             ]
-        })
-    }
+        }
 
-    render() {
         return (
             <CommandBar
                 elipisisAriaLabel='More options'
-                items={this.state.items}
-                overflowItems={this.state.overflowItems}
-                farItems={farItems}
+                {... commandBarProps}
             />
         );
     }
