@@ -36,9 +36,3 @@ export interface StatusUIActionWithMessage {
     action: StatusUIAction
     message?: Message
 }
-
-export type StatusUIActionHandler = (actionMessage: StatusUIActionWithMessage) => void
-
-export interface IStatusUIActionHandler {
-    onStatusUIAction: StatusUIActionHandler
-}

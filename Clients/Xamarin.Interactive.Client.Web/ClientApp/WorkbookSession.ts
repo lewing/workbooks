@@ -8,7 +8,7 @@
 import { HubConnection } from '@aspnet/signalr'
 import { Event } from './utils/Events'
 import { CodeCellResult, CapturedOutputSegment, ICodeCellEvent, CodeCellUpdate } from './evaluation'
-import { Message, StatusUIAction, StatusUIActionHandler, StatusUIActionWithMessage } from './messages'
+import { Message, StatusUIAction, StatusUIActionWithMessage } from './messages'
 
 export interface DotNetSdk {
     name: string

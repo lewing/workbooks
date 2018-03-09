@@ -16,9 +16,9 @@ import { WorkbookSession, ClientSessionEvent, ClientSessionEventKind } from '../
 import { WorkbookCommandBar } from './WorkbookCommandBar'
 import { WorkbookEditor } from './WorkbookEditor'
 import { ResultRendererRegistry } from '../ResultRendererRegistry'
-import { PackageSearch } from './PackageSearch';
-import { StatusMessageBar } from './StatusMessageBar';
-import { StatusUIActionWithMessage, StatusUIAction, MessageKind, MessageSeverity } from '../messages'
+import { PackageSearch } from './PackageSearch'
+import { StatusMessageBar } from './StatusMessageBar'
+import { StatusUIAction, MessageKind, MessageSeverity } from '../messages'
 
 import './WorkbookShell.scss'
 
@@ -40,14 +40,10 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
     private workbookMetadata: any
     private workspaceAvailable: boolean = false
 
-    private initialStatusMessageBarActionMessages: StatusUIActionWithMessage[] = []
-    private statusMessageBarComponent: StatusMessageBar | null = null
-
     constructor() {
         super()
 
-        this.onDocumentKeyDown = this.onDocumentKeyDown.bind(this),
-        this.onStatusUIAction = this.onStatusUIAction.bind(this),
+        this.onDocumentKeyDown = this.onDocumentKeyDown.bind(this)
         this.onClientSessionEvent = this.onClientSessionEvent.bind(this)
 
         this.evaluateWorkbook = this.evaluateWorkbook.bind(this)
@@ -66,15 +62,6 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
         }
     }
 
-    private onStatusUIAction(session: WorkbookSession, actionMessage: StatusUIActionWithMessage) {
-        if (this.statusMessageBarComponent) {
-            this.initialStatusMessageBarActionMessages = []
-            this.statusMessageBarComponent.onStatusUIAction(actionMessage)
-        } else {
-            this.initialStatusMessageBarActionMessages.push(actionMessage)
-        }
-    }
-
     private onClientSessionEvent(session: WorkbookSession, clientSessionEvent: ClientSessionEvent) {
         if (clientSessionEvent.kind === ClientSessionEventKind.CompilationWorkspaceAvailable) {
             this.workspaceAvailable = true
@@ -84,7 +71,6 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
     }
 
     async componentDidMount() {
-        this.shellContext.session.statusUIActionEvent.addListener(this.onStatusUIAction)
         this.shellContext.session.clientSessionEvent.addListener(this.onClientSessionEvent)
 
         await this.shellContext.session.connect()
@@ -98,7 +84,6 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
     }
 
     componentWillUnmount() {
-        this.shellContext.session.statusUIActionEvent.removeListener(this.onStatusUIAction)
         this.shellContext.session.clientSessionEvent.removeListener(this.onClientSessionEvent)
 
         document.addEventListener('keydown', this.onDocumentKeyDown)
@@ -108,7 +93,6 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
         this.commandBar = null
         this.workbookEditor = null
         this.fileButton = null
-        this.statusMessageBarComponent = null
     }
 
     private onDocumentKeyDown(e: KeyboardEvent): void {
@@ -153,76 +137,82 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
             return;
         }
 
-        const file = event.target.files[0];
-        const reader = new FileReader();
-        reader.addEventListener("load", async () => {
-            if (this.workbookEditor != null) {
-                const workbookMetadata = await this.workbookEditor.loadNewContent(reader.result);
-                this.workbookMetadata = workbookMetadata;
-                if (workbookMetadata.packages) {
-                    this.onStatusUIAction(this.shellContext.session, {
-                        action: StatusUIAction.DisplayMessage,
-                        message: {
-                            id: 1001,
-                            kind: MessageKind.Status,
-                            severity: MessageSeverity.Info,
-                            text: "Installing NuGet packages",
-                            showSpinner: true,
-                            detailedText: null
-                        }
-                    });
-                    for (const nuget of workbookMetadata.packages) {
-                        const { id, version } = nuget;
-                        this.onStatusUIAction(this.shellContext.session, {
-                            action: StatusUIAction.DisplayMessage,
-                            message: {
-                                id: 1002,
-                                kind: MessageKind.Status,
-                                severity: MessageSeverity.Info,
-                                text: `Installing ${id} v${version}`,
-                                detailedText: null,
-                                showSpinner: true
-                            }
-                        });
-                        await this.shellContext.session.installPackage(id, version);
-                        this.onStatusUIAction(this.shellContext.session, {
-                            action: StatusUIAction.DisplayMessage,
-                            message: {
-                                id: 1003,
-                                kind: MessageKind.Status,
-                                severity: MessageSeverity.Info,
-                                text: `Installed ${id} v${version}`,
-                                detailedText: null,
-                                showSpinner: true
-                            }
-                        });
-                    }
-                    this.onStatusUIAction(this.shellContext.session, {
-                        action: StatusUIAction.DisplayMessage,
-                        message: {
-                            id: 1004,
-                            kind: MessageKind.Status,
-                            severity: MessageSeverity.Info,
-                            text: "Installed NuGet packages",
-                            showSpinner: false,
-                            detailedText: null
-                        }
-                    });
-                    if (this.packageSearchDialog) {
-                        this.packageSearchDialog.setState({
-                            installedPackagesIds: this.packageSearchDialog.state.installedPackagesIds.concat(
-                                workbookMetadata.packages.map((p: any) => p.id))
-                        })
-                    }
-                    setTimeout(() => {
-                        this.onStatusUIAction(this.shellContext.session, {
-                            action: StatusUIAction.DisplayIdle
-                        });
-                    }, 2000);
-                }
+        const file = event.target.files[0]
+        const reader = new FileReader
+        reader.addEventListener('load', () => this.restorePackages (reader))
+        reader.readAsText(file)
+    }
+
+    private async restorePackages(reader: FileReader) {
+        if (!this.workbookEditor)
+            return
+
+        const workbookMetadata = await this.workbookEditor.loadNewContent(reader.result);
+        this.workbookMetadata = workbookMetadata;
+
+        if (!workbookMetadata.packages)
+            return
+
+        const statusEvent = this.shellContext.session.statusUIActionEvent
+        statusEvent.dispatch({
+            action: StatusUIAction.DisplayMessage,
+            message: {
+                id: 1001,
+                kind: MessageKind.Status,
+                severity: MessageSeverity.Info,
+                text: "Installing NuGet packages",
+                showSpinner: true,
+                detailedText: null
             }
         });
-        reader.readAsText(file);
+        for (const nuget of workbookMetadata.packages) {
+            const { id, version } = nuget;
+            statusEvent.dispatch({
+                action: StatusUIAction.DisplayMessage,
+                message: {
+                    id: 1002,
+                    kind: MessageKind.Status,
+                    severity: MessageSeverity.Info,
+                    text: `Installing ${id} v${version}`,
+                    detailedText: null,
+                    showSpinner: true
+                }
+            });
+            await this.shellContext.session.installPackage(id, version);
+            statusEvent.dispatch({
+                action: StatusUIAction.DisplayMessage,
+                message: {
+                    id: 1003,
+                    kind: MessageKind.Status,
+                    severity: MessageSeverity.Info,
+                    text: `Installed ${id} v${version}`,
+                    detailedText: null,
+                    showSpinner: true
+                }
+            });
+        }
+        statusEvent.dispatch({
+            action: StatusUIAction.DisplayMessage,
+            message: {
+                id: 1004,
+                kind: MessageKind.Status,
+                severity: MessageSeverity.Info,
+                text: "Installed NuGet packages",
+                showSpinner: false,
+                detailedText: null
+            }
+        });
+        if (this.packageSearchDialog) {
+            this.packageSearchDialog.setState({
+                installedPackagesIds: this.packageSearchDialog.state.installedPackagesIds.concat(
+                    workbookMetadata.packages.map((p: any) => p.id))
+            })
+        }
+        setTimeout(() => {
+            statusEvent.dispatch({
+                action: StatusUIAction.DisplayIdle
+            });
+        }, 2000);
     }
 
     saveWorkbook() {
@@ -258,21 +248,17 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
                     loadWorkbook={this.triggerFilePicker}
                     saveWorkbook={this.saveWorkbook}
                     dumpDraftState={this.dumpDraftState}
-                    shellContext={this.shellContext}
-                />
-                <StatusMessageBar
-                    ref={component => this.statusMessageBarComponent = component}
-                    initialActionMessages={this.initialStatusMessageBarActionMessages} />
+                    shellContext={this.shellContext}/>
                 <PackageSearch
                     ref={component => this.packageSearchDialog = component}
                     session={this.shellContext.session}
                     notifyDismiss={() => this.hidePackageDialog()}
-                    getIsHidden={() => this.state.isPackageDialogHidden}
-                />
+                    getIsHidden={() => this.state.isPackageDialogHidden}/>
                 <WorkbookEditor
                     shellContext={this.shellContext}
                     ref={(editor) => this.workbookEditor = editor }
                     content=''/>
+                <StatusMessageBar shellContext={this.shellContext}/>
                 <div style={{ display: "none" }}>
                     <input
                         type="file"
