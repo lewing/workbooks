@@ -16,7 +16,7 @@ import {
 import createMarkdownPlugin from 'draft-js-markdown-plugin'
 import { List, Map, Set } from 'immutable'
 import { CodeCell } from './CodeCell'
-import { WorkbookSession, ClientSessionEvent, ClientSessionEventKind } from '../WorkbookSession'
+import { WorkbookSession, SessionStatus, SessionStatusEvent } from '../WorkbookSession'
 import { MonacoCellMapper, WorkbookCompletionItemProvider, WorkbookHoverProvider, WorkbookSignatureHelpProvider } from '../utils/MonacoUtils'
 import { EditorMessage, EditorMessageType, EditorKeys } from '../utils/EditorMessages'
 import { getNextBlockFor, getPrevBlockFor, isBlockBackwards } from '../utils/DraftStateUtils'
@@ -60,7 +60,7 @@ export class WorkbookEditor extends React.Component<WorkbooksEditorProps, Workbo
     constructor(props: WorkbooksEditorProps) {
         super(props);
 
-        this.onClientSessionEvent = this.onClientSessionEvent.bind(this)
+        this.onSessionStatusEvent = this.onSessionStatusEvent.bind(this)
 
         this.subscriptors = []
 
@@ -91,18 +91,17 @@ export class WorkbookEditor extends React.Component<WorkbooksEditorProps, Workbo
                 new WorkbookSignatureHelpProvider(this.props.shellContext, this)))
     }
 
-    private onClientSessionEvent(session: WorkbookSession, clientSessionEvent: ClientSessionEvent): void {
-        if (clientSessionEvent.kind === ClientSessionEventKind.CompilationWorkspaceAvailable)
-            this.setState({ readOnly: false });
+    private onSessionStatusEvent(session: WorkbookSession, sessionStatusEvent: SessionStatusEvent) {
+        this.setState({ readOnly: sessionStatusEvent.status !== SessionStatus.Ready })
     }
 
     componentDidMount() {
-        this.props.shellContext.session.clientSessionEvent.addListener(this.onClientSessionEvent);
+        this.props.shellContext.session.sessionStatusEvent.addListener(this.onSessionStatusEvent)
         this.focus()
     }
 
     componentWillUnmount() {
-        this.props.shellContext.session.clientSessionEvent.removeListener(this.onClientSessionEvent);
+        this.props.shellContext.session.sessionStatusEvent.removeListener(this.onSessionStatusEvent)
         for (let ticket of this.monacoProviderTickets)
             ticket.dispose()
     }

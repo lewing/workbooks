@@ -7,6 +7,8 @@
 
 using Microsoft.CodeAnalysis;
 
+using Newtonsoft.Json;
+
 namespace Xamarin.Interactive.CodeAnalysis
 {
     public struct InteractiveDiagnostic
@@ -16,14 +18,7 @@ namespace Xamarin.Interactive.CodeAnalysis
         public string Message { get; }
         public string Id { get; }
 
-        public InteractiveDiagnostic (DiagnosticSeverity severity, string message)
-        {
-            Span = default;
-            Severity = severity;
-            Message = message;
-            Id = null;
-        }
-
+        [JsonConstructor]
         public InteractiveDiagnostic (
             PositionSpan span,
             DiagnosticSeverity severity,
@@ -34,6 +29,11 @@ namespace Xamarin.Interactive.CodeAnalysis
             Severity = severity;
             Message = message;
             Id = id;
+        }
+
+        public InteractiveDiagnostic (DiagnosticSeverity severity, string message)
+            : this (default, severity, message, null)
+        {
         }
     }
 }

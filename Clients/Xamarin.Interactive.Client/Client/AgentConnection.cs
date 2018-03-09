@@ -94,7 +94,7 @@ namespace Xamarin.Interactive.Client
 
             IAgentTicket ticket;
 
-            if (clientSessionUri.SessionKind == ClientSessionKind.Workbook && Type != AgentType.Unknown)
+            if (clientSessionUri == null || clientSessionUri.SessionKind == ClientSessionKind.Workbook)
                 ticket = await workbookApp.RequestAgentTicketAsync (
                     clientSessionUri,
                     messageService,

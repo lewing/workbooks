@@ -18,6 +18,7 @@ using Xamarin.Interactive.CodeAnalysis.Completion;
 using Xamarin.Interactive.CodeAnalysis.Hover;
 using Xamarin.Interactive.CodeAnalysis.SignatureHelp;
 using Xamarin.Interactive.Messages;
+using Xamarin.Interactive.Session;
 
 namespace Xamarin.Interactive.Client.Web
 {
@@ -25,8 +26,7 @@ namespace Xamarin.Interactive.Client.Web
     {
         internal sealed class SessionState : IDisposable
         {
-            public ClientSession ClientSession { get; set; }
-            public EvaluationService EvaluationService { get; set; }
+            public InteractiveSession Session { get; set; }
             public Observer<ICodeCellEvent> EvaluationEventObserver { get; set; }
             public CompletionController CompletionController { get; set; }
             public HoverController HoverController { get; set; }
@@ -34,13 +34,13 @@ namespace Xamarin.Interactive.Client.Web
 
             public void Dispose ()
             {
-                ClientSession?.Dispose ();
-                ClientSession = null;
+                Session?.Dispose ();
+                Session = null;
             }
         }
 
-        readonly ConcurrentDictionary<ClientConnectionId, SessionState> sessions
-            = new ConcurrentDictionary<ClientConnectionId, SessionState> ();
+        readonly ConcurrentDictionary<InteractiveSessionId, SessionState> sessions
+            = new ConcurrentDictionary<InteractiveSessionId, SessionState> ();
 
         public override Task OnConnectedAsync (HubConnectionContext connection)
         {
@@ -57,31 +57,10 @@ namespace Xamarin.Interactive.Client.Web
             return base.OnDisconnectedAsync (connection);
         }
 
-        internal void BindClientSession (ClientConnectionId connectionId, ClientSession clientSession)
+        internal void BindClientSession (InteractiveSession session)
         {
-            if (sessions.TryGetValue (connectionId, out var sessionState)) {
-                sessionState.ClientSession = clientSession;
-
-                clientSession.Subscribe (new Observer<ClientSessionEvent> (evnt =>
-                    SendConnectionAsync (
-                        connectionId,
-                        "ClientSessionEvent", new [] {
-                            new {
-                                kind = evnt.Kind
-                            }
-                    }).Forget ()));
-
-                sessionState.EvaluationEventObserver = new Observer<ICodeCellEvent> (evnt =>
-                    SendConnectionAsync (
-                        connectionId,
-                        "CodeCellEvent",
-                        new [] { evnt }).Forget ());
-
-                if (sessionState.ClientSession.EvaluationService is EvaluationService evaluationService) {
-                    sessionState.EvaluationService = evaluationService;
-                    evaluationService.Events.Subscribe (sessionState.EvaluationEventObserver);
-                }
-            }
+            if (sessions.TryGetValue (session.SessionId, out var sessionState))
+                sessionState.Session = session;
         }
 
         internal void SendStatusUIAction (
@@ -93,7 +72,7 @@ namespace Xamarin.Interactive.Client.Web
                 "StatusUIAction",
                 new object [] { action, message }).Forget ();
 
-        internal SessionState GetSession (ClientConnectionId connectionId)
-            => sessions.TryGetValue (connectionId, out var session) ? session : null;
+        internal SessionState GetSession (InteractiveSessionId sessionId)
+            => sessions.TryGetValue (sessionId, out var session) ? session : null;
     }
 }

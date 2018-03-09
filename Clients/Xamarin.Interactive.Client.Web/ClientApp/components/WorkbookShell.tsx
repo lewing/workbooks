@@ -12,7 +12,7 @@ import { saveAs } from 'file-saver'
 import { loadTheme } from 'office-ui-fabric-react/lib/Styling';
 
 import { osMac } from '../utils'
-import { WorkbookSession, ClientSessionEvent, ClientSessionEventKind } from '../WorkbookSession'
+import { WorkbookSession, SessionStatus, SessionStatusEvent } from '../WorkbookSession'
 import { WorkbookCommandBar } from './WorkbookCommandBar'
 import { WorkbookEditor } from './WorkbookEditor'
 import { ResultRendererRegistry } from '../ResultRendererRegistry'
@@ -44,7 +44,7 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
         super()
 
         this.onDocumentKeyDown = this.onDocumentKeyDown.bind(this)
-        this.onClientSessionEvent = this.onClientSessionEvent.bind(this)
+        this.onSessionStatusEvent = this.onSessionStatusEvent.bind(this)
 
         this.evaluateWorkbook = this.evaluateWorkbook.bind(this)
         this.showPackageDialog = this.showPackageDialog.bind(this)
@@ -62,16 +62,18 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
         }
     }
 
-    private onClientSessionEvent(session: WorkbookSession, clientSessionEvent: ClientSessionEvent) {
-        if (clientSessionEvent.kind === ClientSessionEventKind.CompilationWorkspaceAvailable) {
+    private onSessionStatusEvent(session: WorkbookSession, sessionStatusEvent: SessionStatusEvent) {
+        if (sessionStatusEvent.status === SessionStatus.Ready) {
             this.workspaceAvailable = true
             if (this.workbookEditor)
                 this.workbookEditor.setUpInitialState()
+        } else {
+            this.workspaceAvailable = false
         }
     }
 
     async componentDidMount() {
-        this.shellContext.session.clientSessionEvent.addListener(this.onClientSessionEvent)
+        this.shellContext.session.sessionStatusEvent.addListener(this.onSessionStatusEvent)
 
         await this.shellContext.session.connect()
 
@@ -84,7 +86,7 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
     }
 
     componentWillUnmount() {
-        this.shellContext.session.clientSessionEvent.removeListener(this.onClientSessionEvent)
+        this.shellContext.session.sessionStatusEvent.removeListener(this.onSessionStatusEvent)
 
         document.addEventListener('keydown', this.onDocumentKeyDown)
 
@@ -100,6 +102,11 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
             return
 
         switch (e.key) {
+            case 'g':
+                e.preventDefault()
+                if (this.workspaceAvailable)
+                    this.showPackageDialog()
+                break
             case 'o':
                 e.preventDefault()
                 if (this.workspaceAvailable)
@@ -157,12 +164,9 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
         statusEvent.dispatch({
             action: StatusUIAction.DisplayMessage,
             message: {
-                id: 1001,
                 kind: MessageKind.Status,
                 severity: MessageSeverity.Info,
-                text: "Installing NuGet packages",
-                showSpinner: true,
-                detailedText: null
+                text: "Installing NuGet packages"
             }
         });
         for (const nuget of workbookMetadata.packages) {
@@ -170,36 +174,30 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
             statusEvent.dispatch({
                 action: StatusUIAction.DisplayMessage,
                 message: {
-                    id: 1002,
                     kind: MessageKind.Status,
                     severity: MessageSeverity.Info,
-                    text: `Installing ${id} v${version}`,
-                    detailedText: null,
-                    showSpinner: true
+                    text: `Installing ${id} v${version}`
                 }
             });
-            await this.shellContext.session.installPackage(id, version);
+            await this.shellContext.session.installPackage({
+                packageId: id,
+                version: version
+            });
             statusEvent.dispatch({
                 action: StatusUIAction.DisplayMessage,
                 message: {
-                    id: 1003,
                     kind: MessageKind.Status,
                     severity: MessageSeverity.Info,
-                    text: `Installed ${id} v${version}`,
-                    detailedText: null,
-                    showSpinner: true
+                    text: `Installed ${id} v${version}`
                 }
             });
         }
         statusEvent.dispatch({
             action: StatusUIAction.DisplayMessage,
             message: {
-                id: 1004,
                 kind: MessageKind.Status,
                 severity: MessageSeverity.Info,
-                text: "Installed NuGet packages",
-                showSpinner: false,
-                detailedText: null
+                text: "Installed NuGet packages"
             }
         });
         if (this.packageSearchDialog) {

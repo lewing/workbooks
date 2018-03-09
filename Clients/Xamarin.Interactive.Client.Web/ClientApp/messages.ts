@@ -24,12 +24,12 @@ export const enum MessageSeverity {
 }
 
 export interface Message {
-    id: number
+    id?: number
     kind: MessageKind
     severity: MessageSeverity
-    text: string | null
-    detailedText: string | null
-    showSpinner: boolean
+    text?: string
+    detailedText?: string
+    showSpinner?: boolean
 }
 
 export interface StatusUIActionWithMessage {

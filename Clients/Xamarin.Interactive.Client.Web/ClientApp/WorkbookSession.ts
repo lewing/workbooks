@@ -6,9 +6,10 @@
 // Licensed under the MIT License.
 
 import { HubConnection } from '@aspnet/signalr'
+import * as catalog from './i18n'
 import { Event } from './utils/Events'
 import { CodeCellResult, CapturedOutputSegment, ICodeCellEvent, CodeCellUpdate } from './evaluation'
-import { Message, StatusUIAction, StatusUIActionWithMessage } from './messages'
+import { Message, StatusUIAction, StatusUIActionWithMessage, MessageKind, MessageSeverity } from './messages'
 
 export interface DotNetSdk {
     name: string
@@ -25,52 +26,42 @@ export interface WorkbookTarget {
     sdk: DotNetSdk
 }
 
-export const enum ClientSessionEventKind {
-    /**
-     * Will be raised once per subscription indicating that the session is available for use.
-    */
-    SessionAvailable = 'SessionAvailable',
-
-    /**
-     * Will be raised when the session title has changed, such as when a workbook is saved.
-     */
-    SessionTitleUpdated = 'SessionTitleUpdated',
-
-    /**
-     * Can be raised any number of times per subscription, indicating that a connection
-     * to the agent associated with the session has been made and that ClientSession.Agent.Api
-     * is usable.
-     */
-    AgentConnected = 'AgentConnected',
-
-    /**
-     * Can raised any number of times per subscription, indicating that agent-side features
-     * may have changed, such as new available view hierarchies.
-     */
-    AgentFeaturesUpdated = 'AgentFeaturesUpdated',
-
-    /**
-     * Can be raised any number of times per subscription, indicating that a connection
-     * to the agent associated with the session has been lost and that ClientSession.Agent.Api
-     * is not available.
-     */
-    AgentDisconnected = 'AgentDisconnected',
-
-    /**
-     * Can be raised any number of times per subscription, indicating that the compilation
-     * workspace is ready for use. Will always be invoked after <see cref="AgentConnected"/>.
-     */
-    CompilationWorkspaceAvailable = 'CompilationWorkspaceAvailable'
+export interface LanguageDescription {
+    name: string
+    version?: string
 }
 
-export interface ClientSessionEvent {
-    kind: ClientSessionEventKind
+export interface SessionDescription {
+    languageDescription: LanguageDescription,
+    targetPlatformIdentifier: string
+}
+
+export const enum SessionStatus {
+    Uninitialized = 'Uninitialized',
+    ConnectingToAgent = 'ConnectingToAgent',
+    InitializingWorkspace = 'InitializingWorkspace',
+    Ready = 'Ready',
+    AgentDisconnected = 'AgentDisconnected'
+}
+
+export interface SessionStatusEvent {
+    status: SessionStatus
+}
+
+export interface PackageSource {
+    source: string
+}
+
+export interface PackageDescription {
+    packageId: string
+    version?: string
+    source?: PackageSource
 }
 
 export class WorkbookSession {
     private hubConnection = new HubConnection('/session')
 
-    readonly clientSessionEvent: Event<WorkbookSession, ClientSessionEvent>
+    readonly sessionStatusEvent: Event<WorkbookSession, SessionStatusEvent>
     readonly statusUIActionEvent: Event<WorkbookSession, StatusUIActionWithMessage>
     readonly codeCellEvent: Event<WorkbookSession, ICodeCellEvent>
 
@@ -80,15 +71,47 @@ export class WorkbookSession {
     }
 
     constructor() {
-        this.clientSessionEvent = new Event(<WorkbookSession>this)
+        this.sessionStatusEvent = new Event(<WorkbookSession>this)
         this.statusUIActionEvent = new Event(<WorkbookSession>this)
         this.codeCellEvent = new Event(<WorkbookSession>this)
 
         this.hubConnection.on(
-            'ClientSessionEvent',
-            (e: ClientSessionEvent) => {
-                this.clientSessionEvent.dispatch(e)
-                console.debug('Hub: ClientSessionEvent: %O', e)
+            'SessionStatusEvent',
+            (e: SessionStatusEvent) => {
+                console.debug('Hub: SessionStatusEvent: %O', e.status)
+                this.sessionStatusEvent.dispatch(e)
+
+                let message: StatusUIActionWithMessage = {
+                    action: StatusUIAction.DisplayMessage,
+                    message: {
+                        kind: MessageKind.Status,
+                        severity: MessageSeverity.Info,
+                        showSpinner: true
+                    }
+                }
+
+                switch (e.status) {
+                    case SessionStatus.ConnectingToAgent:
+                        message.message!.text = catalog.getString('Connecting to agent…')
+                        break
+                    case SessionStatus.InitializingWorkspace:
+                        message.message!.text = catalog.getString('Initializing workspace…')
+                        break
+                    case SessionStatus.Ready:
+                        message.action = StatusUIAction.DisplayIdle
+                        break
+                    case SessionStatus.AgentDisconnected:
+                        message.message!.severity = MessageSeverity.Error
+                        message.message!.text = catalog.getString('Agent disconnected')
+                        message.message!.showSpinner = false
+                        break
+                    default:
+                        message.message = undefined
+                        break
+                }
+
+                if (message.message)
+                    this.statusUIActionEvent.dispatch(message)
             })
 
         this.hubConnection.on(
@@ -109,7 +132,12 @@ export class WorkbookSession {
             })
     }
 
-    async connect(): Promise<void> {
+    async connect(sessionDescription: SessionDescription = {
+        languageDescription: {
+            name: "C#"
+        },
+        targetPlatformIdentifier: 'console'
+    }): Promise<void> {
         await this.hubConnection.start()
 
         this._availableWorkbookTargets = <WorkbookTarget[]>await this.hubConnection.invoke(
@@ -119,7 +147,7 @@ export class WorkbookSession {
 
         await this.hubConnection.invoke(
             'OpenSession',
-            'xamarin-interactive:///v1?agentType=Console&sessionKind=Workbook')
+            sessionDescription)
     }
 
     disconnect(): Promise<void> {
@@ -142,19 +170,19 @@ export class WorkbookSession {
         return this.hubConnection.invoke('Evaluate', null, true)
     }
 
-    provideCompletions(codeCellId: string, lineNumber: number, column: number): Promise<monaco.languages.CompletionItem[]> {
-        return this.hubConnection.invoke("ProvideCompletions", codeCellId, lineNumber, column)
+    getCompletions(codeCellId: string, position: monaco.Position): Promise<monaco.languages.CompletionItem[]> {
+        return this.hubConnection.invoke("GetCompletions", codeCellId, position)
     }
 
-    provideHover(codeCellId: string, lineNumber: number, column: number): Promise<monaco.languages.Hover> {
-        return this.hubConnection.invoke("ProvideHover", codeCellId, lineNumber, column)
+    getHover(codeCellId: string, position: monaco.Position): Promise<monaco.languages.Hover> {
+        return this.hubConnection.invoke("GetHover", codeCellId, position)
     }
 
-    provideSignatureHelp(codeCellId: string, lineNumber: number, column: number): Promise<monaco.languages.SignatureHelp> {
-        return this.hubConnection.invoke("ProvideSignatureHelp", codeCellId, lineNumber, column)
+    getSignatureHelp(codeCellId: string, position: monaco.Position): Promise<monaco.languages.SignatureHelp> {
+        return this.hubConnection.invoke("GetSignatureHelp", codeCellId, position)
     }
 
-    installPackage(packageId: string, version: string): Promise<string[]> {
-        return this.hubConnection.invoke("InstallPackage", packageId, version)
+    installPackage(packageDescription: PackageDescription): Promise<PackageDescription[]> {
+        return this.hubConnection.invoke("InstallPackages", [packageDescription])
     }
 }

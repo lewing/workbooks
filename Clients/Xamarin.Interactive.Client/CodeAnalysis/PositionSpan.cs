@@ -8,6 +8,8 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
+using Newtonsoft.Json;
+
 namespace Xamarin.Interactive.CodeAnalysis
 {
     /// <summary>
@@ -22,6 +24,7 @@ namespace Xamarin.Interactive.CodeAnalysis
         public int EndColumn { get; }
         public string FilePath { get; }
 
+        [JsonConstructor]
         public PositionSpan (
             int startLineNumber,
             int startColumn,

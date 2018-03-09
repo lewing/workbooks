@@ -177,13 +177,15 @@ export class PackageSearch extends React.Component<PackageSearchProps, PackageSe
         })
 
         console.log(pkg)
-        let installedPackageIds = await this.props.session.installPackage(
-            pkg.id,
-            pkg.version)
+        let installedPackageIds = await this.props.session.installPackage({
+            packageId: pkg.id,
+            version: pkg.version
+        })
 
         this.setState({
             inProgress: false,
-            installedPackagesIds: installedPackageIds,
+            installedPackagesIds: installedPackageIds
+                .map(packageDescription => packageDescription.packageId),
             selectedPackage: undefined
         })
     }

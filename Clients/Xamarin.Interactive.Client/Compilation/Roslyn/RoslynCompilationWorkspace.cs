@@ -16,6 +16,10 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Xamarin.Interactive.CodeAnalysis;
+using Xamarin.Interactive.Client.Monaco;
+using Xamarin.Interactive.CodeAnalysis.Completion;
+using Xamarin.Interactive.CodeAnalysis.Hover;
+using Xamarin.Interactive.CodeAnalysis.SignatureHelp;
 
 namespace Xamarin.Interactive.Compilation.Roslyn
 {
@@ -339,18 +343,17 @@ namespace Xamarin.Interactive.Compilation.Roslyn
 
         int submissionCount;
 
-        public RoslynCompilationWorkspace (
-            InteractiveDependencyResolver dependencyResolver,
-            TargetCompilationConfiguration compilationConfiguration,
-            AgentType agentType,
-            Type hostObjectType = null,
-            bool includePeImagesInResolution = false)
-        {
-            if (dependencyResolver == null)
-                throw new ArgumentNullException (nameof (dependencyResolver));
+        public WorkspaceConfiguration Configuration { get; }
 
-            if (compilationConfiguration == null)
-                throw new ArgumentNullException (nameof (compilationConfiguration));
+        public RoslynCompilationWorkspace (WorkspaceConfiguration configuration)
+        {
+            if (configuration == null)
+                throw new ArgumentNullException (nameof (configuration));
+
+            Configuration = configuration;
+
+            var dependencyResolver = configuration.DependencyResolver;
+            var compilationConfiguration = configuration.CompilationConfiguration;
 
             workspace = new InteractiveWorkspace ();
             sourceReferenceResolver = new InteractiveSourceReferenceResolver (dependencyResolver);
@@ -360,8 +363,10 @@ namespace Xamarin.Interactive.Compilation.Roslyn
 
             DependencyResolver = dependencyResolver;
 
-            this.hostObjectType = hostObjectType;
+            hostObjectType = configuration.HostObjectType;
             EvaluationContextId = compilationConfiguration.EvaluationContextId;
+            includePeImagesInResolution = configuration.IncludePEImagesInDependencyResolution;
+
             initialImports = compilationConfiguration.DefaultUsings.ToImmutableArray ();
             initialWarningSuppressions = compilationConfiguration.DefaultWarningSuppressions.ToImmutableArray ();
             initialDiagnosticOptions = initialWarningSuppressions.ToImmutableDictionary (
@@ -380,11 +385,12 @@ namespace Xamarin.Interactive.Compilation.Roslyn
                 // those agents. A bug in .NET 4.7 means we can't just always implicitly add
                 // the reference and have the runtime figure out what should be done. This bug
                 // is fixed in .NET 4.7.1.
-                Tuple.Create<string, Func<bool>> ("System.ValueTuple", () => {
-                    return (agentType == AgentType.Console || agentType == AgentType.WPF) &&
-                        typeof (object).Assembly.GetType ("System.ValueTuple") == null;
-                })
+                //Tuple.Create<string, Func<bool>> ("System.ValueTuple", () => {
+                //    return (agentType == AgentType.Console || agentType == AgentType.WPF) &&
+                //        typeof (object).Assembly.GetType ("System.ValueTuple") == null;
+                //})
             };
+
             foreach (var implicitReference in byNameImplicitReferences) {
                 if (!implicitReference.Item2 ())
                     continue;
@@ -395,8 +401,6 @@ namespace Xamarin.Interactive.Compilation.Roslyn
                     initialReferences = initialReferences.Add (
                         MetadataReference.CreateFromFile (assembly.Path));
             }
-
-            this.includePeImagesInResolution = includePeImagesInResolution;
 
             CompletionService = workspace
                 .Services
@@ -702,7 +706,7 @@ namespace Xamarin.Interactive.Compilation.Roslyn
                 }
 
                 return (new CodeAnalysis.Compilation (
-                    ToCodeCellId (submissionDocumentId),
+                    submissionDocumentId.ToCodeCellId (),
                     submissionCount,
                     EvaluationContextId,
                     evaluationEnvironment,
@@ -720,7 +724,7 @@ namespace Xamarin.Interactive.Compilation.Roslyn
                         emitResult
                             .Diagnostics
                             .Filter ()
-                            .Select (ToInteractiveDiagnostic)
+                            .Select (ConversionExtensions.ToInteractiveDiagnostic)
                             .ToImmutableList ());
             }
         }
@@ -745,7 +749,7 @@ namespace Xamarin.Interactive.Compilation.Roslyn
 
         #endregion
 
-        #region IEvaluationService
+        #region IWorkspaceService
 
         public ImmutableList<CodeCellId> GetTopologicallySortedCellIds ()
             => workspace
@@ -754,37 +758,37 @@ namespace Xamarin.Interactive.Compilation.Roslyn
                 .GetTopologicallySortedProjects ()
                 .Select (workspace.CurrentSolution.GetProject)
                 .SelectMany (p => p.DocumentIds)
-                .Select (ToCodeCellId)
+                .Select (ConversionExtensions.ToCodeCellId)
                 .ToImmutableList ();
 
         public CodeCellId InsertCell (
             CodeCellBuffer buffer,
             CodeCellId previousCellId,
             CodeCellId nextCellId)
-            => ToCodeCellId (AddSubmission (
+            => AddSubmission (
                 buffer.CurrentText,
-                ToDocumentId (previousCellId),
-                ToDocumentId (nextCellId)));
+                previousCellId.ToDocumentId (),
+                nextCellId.ToDocumentId ()).ToCodeCellId ();
 
         public void RemoveCell (CodeCellId cellId, CodeCellId nextCellId)
             => RemoveSubmission (
-                ToDocumentId (cellId),
-                ToDocumentId (nextCellId));
+                cellId.ToDocumentId (),
+                nextCellId.ToDocumentId ());
 
         public bool IsCellComplete (CodeCellId cellId)
-            => IsDocumentSubmissionComplete (ToDocumentId (cellId));
+            => IsDocumentSubmissionComplete (cellId.ToDocumentId ());
 
         public bool ShouldInvalidateCellBuffer (CodeCellId cellId)
-            => HaveAnyLoadDirectiveFilesChanged (ToDocumentId (cellId));
+            => HaveAnyLoadDirectiveFilesChanged (cellId.ToDocumentId ());
 
         public async Task<ImmutableList<InteractiveDiagnostic>> GetCellDiagnosticsAsync (
             CodeCellId cellId,
             CancellationToken cancellationToken = default)
             => (await GetSubmissionCompilationDiagnosticsAsync (
-                ToDocumentId (cellId),
+                cellId.ToDocumentId (),
                 cancellationToken))
                 .Filter ()
-                .Select (ToInteractiveDiagnostic)
+                .Select (ConversionExtensions.ToInteractiveDiagnostic)
                 .ToImmutableList ();
 
         public Task<(CodeAnalysis.Compilation compilation, ImmutableList<InteractiveDiagnostic> diagnostics)>
@@ -793,30 +797,79 @@ namespace Xamarin.Interactive.Compilation.Roslyn
                 IEvaluationEnvironment evaluationEnvironment,
                 CancellationToken cancellationToken = default)
                 => GetSubmissionCompilationAsync (
-                    ToDocumentId (cellId),
+                    cellId.ToDocumentId (),
                     evaluationEnvironment,
                     cancellationToken);
 
         #endregion
 
-        internal static CodeCellId ToCodeCellId (DocumentId documentId)
-            => new CodeCellId (documentId.ProjectId.Id, documentId.Id);
 
-        internal static DocumentId ToDocumentId (CodeCellId codeCellId)
+        #region Hover/Completions/Signature Help
+
+        bool TryGetSourceText (CodeCellId codeCellId, out SourceText sourceText)
         {
-            if (codeCellId == default)
-                return default;
-
-            return DocumentId.CreateFromSerialized (
-                ProjectId.CreateFromSerialized (codeCellId.ProjectId),
-                codeCellId.Id);
+            sourceText = default;
+            var document = workspace.CurrentSolution?.GetDocument (codeCellId.ToDocumentId ());
+            return document != null && document.TryGetText (out sourceText);
         }
 
-        static InteractiveDiagnostic ToInteractiveDiagnostic (Diagnostic diagnostic)
-            => new InteractiveDiagnostic (
-                PositionSpan.FromRoslyn (diagnostic.Location),
-                diagnostic.Severity,
-                diagnostic.GetMessage (),
-                diagnostic.Id);
+        HoverController hoverController;
+        CompletionController completionController;
+        SignatureHelpController signatureHelpController;
+
+        public async Task<MonacoHover> GetHoverAsync (
+            CodeCellId codeCellId,
+            Position position,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryGetSourceText (codeCellId, out var sourceText))
+                return default;
+
+            if (hoverController == null)
+                hoverController = new HoverController (this);
+
+            return new MonacoHover (await hoverController.ProvideHoverAsync (
+                sourceText,
+                position.ToRoslyn (),
+                cancellationToken));
+        }
+
+        public async Task<IEnumerable<MonacoCompletionItem>> GetCompletionsAsync (
+            CodeCellId codeCellId,
+            Position position,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryGetSourceText (codeCellId, out var sourceText))
+                return null;
+
+            if (completionController == null)
+                completionController = new CompletionController (this);
+
+            return (await completionController
+                .ProvideFilteredCompletionItemsAsync (
+                    sourceText,
+                    position.ToRoslyn (),
+                    cancellationToken))
+                .Select (i => new MonacoCompletionItem (i));
+        }
+
+        public Task<SignatureHelpViewModel> GetSignatureHelpAsync (
+            CodeCellId codeCellId,
+            Position position,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryGetSourceText (codeCellId, out var sourceText))
+                return null;
+
+            if (signatureHelpController == null)
+                signatureHelpController = new SignatureHelpController (this);
+
+            return signatureHelpController.ComputeSignatureHelpAsync (
+                sourceText,
+                position.ToRoslyn (),
+                cancellationToken);
+        }
+
+        #endregion
     }
 }

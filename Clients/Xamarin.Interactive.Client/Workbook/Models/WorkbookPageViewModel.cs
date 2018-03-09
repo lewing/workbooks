@@ -350,6 +350,9 @@ namespace Xamarin.Interactive.Workbook.Models
 
         #region Evaluation
 
+        public EvaluationContextId Id
+            => ClientSession.CompilationWorkspace.EvaluationContextId;
+
         protected async Task AbortEvaluationAsync ()
         {
             if (!ClientSession.Agent.IsConnected)
@@ -618,7 +621,7 @@ namespace Xamarin.Interactive.Workbook.Models
 
         CodeCellState GetCodeCellStateById (CodeCellId codeCellId)
         {
-            var documentId = RoslynCompilationWorkspace.ToDocumentId (codeCellId);
+            var documentId = codeCellId.ToDocumentId ();
             return CodeCells.Values.FirstOrDefault (
                 codeCell => codeCell.DocumentId == documentId);
         }

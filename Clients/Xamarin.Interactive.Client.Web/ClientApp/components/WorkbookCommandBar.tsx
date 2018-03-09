@@ -13,8 +13,8 @@ import {
     WorkbookTarget,
     DotNetSdk,
     WorkbookSession,
-    ClientSessionEvent,
-    ClientSessionEventKind
+    SessionStatus,
+    SessionStatusEvent
 } from '../WorkbookSession'
 
 import { WorkbookShellContext } from './WorkbookShell';
@@ -37,7 +37,7 @@ export class WorkbookCommandBar extends React.Component<WorkbookCommandBarProps,
     constructor(props: WorkbookCommandBarProps) {
         super(props)
 
-        this.onClientSessionEvent = this.onClientSessionEvent.bind(this)
+        this.onSessionStatusEvent = this.onSessionStatusEvent.bind(this)
 
         this.state = {
             canOpenWorkbook: false,
@@ -45,20 +45,16 @@ export class WorkbookCommandBar extends React.Component<WorkbookCommandBarProps,
         }
     }
 
-    private onClientSessionEvent(session: WorkbookSession, clientSessionEvent: ClientSessionEvent) {
-        switch (clientSessionEvent.kind) {
-            case ClientSessionEventKind.CompilationWorkspaceAvailable:
-                this.setState({ canOpenWorkbook: true })
-                break
-        }
+    private onSessionStatusEvent(session: WorkbookSession, sessionStatusEvent: SessionStatusEvent) {
+        this.setState({ canOpenWorkbook: sessionStatusEvent.status === SessionStatus.Ready })
     }
 
     componentDidMount() {
-        this.props.shellContext.session.clientSessionEvent.addListener(this.onClientSessionEvent)
+        this.props.shellContext.session.sessionStatusEvent.addListener(this.onSessionStatusEvent)
     }
 
     componentWillUnmount() {
-        this.props.shellContext.session.clientSessionEvent.removeListener(this.onClientSessionEvent)
+        this.props.shellContext.session.sessionStatusEvent.removeListener(this.onSessionStatusEvent)
     }
 
     setWorkbookTargets(targets: WorkbookTarget[]) {

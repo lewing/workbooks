@@ -28,10 +28,9 @@ export class WorkbookCompletionItemProvider implements monaco.languages.Completi
         if (codeCellId == null)
             return items
 
-        return await this.shellContext.session.provideCompletions(
+        return await this.shellContext.session.getCompletions(
             codeCellId,
-            position.lineNumber,
-            position.column)
+            position)
     }
 }
 
@@ -56,10 +55,9 @@ export class WorkbookHoverProvider implements monaco.languages.HoverProvider {
         if (codeCellId == null)
             return <monaco.languages.Hover>{}
 
-        return await this.shellContext.session.provideHover(
+        return await this.shellContext.session.getHover(
             codeCellId,
-            position.lineNumber,
-            position.column)
+            position)
     }
 }
 
@@ -86,9 +84,8 @@ export class WorkbookSignatureHelpProvider implements monaco.languages.Signature
         if (codeCellId == null)
             return <monaco.languages.SignatureHelp>{}
 
-        return await this.shellContext.session.provideSignatureHelp(
+        return await this.shellContext.session.getSignatureHelp(
             codeCellId,
-            position.lineNumber,
-            position.column)
+            position)
     }
 }

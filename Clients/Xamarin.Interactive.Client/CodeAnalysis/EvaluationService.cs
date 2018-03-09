@@ -77,8 +77,10 @@ namespace Xamarin.Interactive.CodeAnalysis
         readonly Inhibitor evaluationInhibitor = new Inhibitor ();
 
         readonly IWorkspaceService workspace;
-        readonly EvaluationEnvironment evaluationEnvironment;
-        readonly IAgentConnection agentConnection;
+        readonly IEvaluationEnvironment evaluationEnvironment;
+
+        IAgentConnection agentConnection;
+        IDisposable agentConnectionMessagesSubscription;
 
         readonly Dictionary<CodeCellId, CodeCellState> cellStates
             = new Dictionary<CodeCellId, CodeCellState> ();
@@ -94,16 +96,30 @@ namespace Xamarin.Interactive.CodeAnalysis
 
         public EvaluationService (
             IWorkspaceService workspace,
-            EvaluationEnvironment evaluationEnvironment,
-            IAgentConnection agentConnection)
+            IEvaluationEnvironment evaluationEnvironment)
         {
             this.workspace = workspace
                 ?? throw new ArgumentNullException (nameof (workspace));
 
             this.evaluationEnvironment = evaluationEnvironment;
-            this.agentConnection = agentConnection;
+        }
 
-            this.agentConnection.Api.Messages.Subscribe (new Observer<object> (OnAgentMessage));
+        public void NotifyAgentConnected (IAgentConnection agentConnection)
+        {
+            lock (this) {
+                if (this.agentConnection != null)
+                    NotifyAgentDisconnected ();
+
+                this.agentConnection = agentConnection;
+                agentConnectionMessagesSubscription = this.agentConnection.Api.Messages.Subscribe (
+                    new Observer<object> (OnAgentMessage));
+            }
+        }
+
+        public void NotifyAgentDisconnected ()
+        {
+            lock (this)
+                agentConnectionMessagesSubscription?.Dispose ();
         }
 
         #region IEvaluationService
