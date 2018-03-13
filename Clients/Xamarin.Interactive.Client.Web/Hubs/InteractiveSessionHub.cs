@@ -16,7 +16,7 @@ using Xamarin.Interactive.CodeAnalysis.SignatureHelp;
 using Xamarin.Interactive.NuGet;
 using Xamarin.Interactive.Session;
 
-namespace Xamarin.Interactive.Client.Web
+namespace Xamarin.Interactive.Client.Web.Hubs
 {
     /// <summary>
     /// SignalR proxy for InteractiveSession.

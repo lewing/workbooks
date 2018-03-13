@@ -18,6 +18,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using Xamarin.Interactive.Client.Web.Hosting;
+using Xamarin.Interactive.Client.Web.Hubs;
 using Xamarin.Interactive.Client.Web.Middleware;
 using Xamarin.Interactive.Serialization;
 
