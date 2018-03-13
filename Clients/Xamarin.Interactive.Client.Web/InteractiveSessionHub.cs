@@ -1,8 +1,4 @@
-﻿//
-// Author:
-//   Aaron Bockover <abock@microsoft.com>
-//
-// Copyright (c) Microsoft Corporation. All rights reserved.
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
 using System;
@@ -10,6 +6,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.SignalR;
+
+using Microsoft.Extensions.Caching.Memory;
 
 using Xamarin.Interactive.Client.Monaco;
 using Xamarin.Interactive.CodeAnalysis;
@@ -20,68 +18,57 @@ using Xamarin.Interactive.Session;
 
 namespace Xamarin.Interactive.Client.Web
 {
+    /// <summary>
+    /// SignalR proxy for InteractiveSession.
+    /// </summary>
+    /// <remarks>
+    /// Remember that SignalR Hub has the same lifecycle semantics as MVC
+    /// controllers: a new instance will be created for each hub method
+    /// invocation (including OnConnectedAsync and OnDisconnectedAsync).
+    ///
+    /// TL;DR: Do not store state in this class!
+    /// </remarks>
     sealed class InteractiveSessionHub : Hub
     {
-        readonly IServiceProvider serviceProvider;
+        readonly IMemoryCache memoryCache;
 
-        public InteractiveSessionHub (IServiceProvider serviceProvider)
-        {
-            this.serviceProvider = serviceProvider;
-        }
+        public InteractiveSessionHub (IMemoryCache memoryCache)
+            => this.memoryCache = memoryCache;
 
         public override Task OnConnectedAsync ()
         {
-            serviceProvider
-                .GetInteractiveSessionHubManager ()
-                .OnConnectedAsync (Context.Connection);
+            memoryCache.GetOrCreate (
+                Context.ConnectionId,
+                e => InteractiveSession.CreateWorkbookSession ());
 
-            return base.OnConnectedAsync ();
+            return Task.CompletedTask;
         }
 
         public override Task OnDisconnectedAsync (Exception exception)
         {
-            serviceProvider
-                .GetInteractiveSessionHubManager ()
-                .OnDisconnectedAsync (Context.Connection);
+            if (memoryCache.TryGetValue (
+                Context.ConnectionId,
+                out InteractiveSession session))
+                session.Dispose ();
 
-            return base.OnDisconnectedAsync (exception);
+            memoryCache.Remove (Context.ConnectionId);
+
+            return Task.CompletedTask;
         }
+
+        InteractiveSession GetSession ()
+            => memoryCache.Get<InteractiveSession> (Context.ConnectionId);
 
         public IEnumerable<WorkbookAppInstallation> GetAvailableWorkbookTargets ()
             => WorkbookAppInstallation.All;
 
-        public async Task OpenSession (InteractiveSessionDescription sessionDescription)
-        {
-            var hubManager = serviceProvider.GetInteractiveSessionHubManager ();
+        public IObservable<InteractiveSessionEvent> ObserveSessionEvents ()
+            => GetSession ().Events;
 
-            var session = InteractiveSession.CreateWorkbookSession (Context.ConnectionId);
-
-            session.Status.Subscribe (
-                new Observer<InteractiveSessionStatus> (status =>
-                    hubManager.SendConnectionAsync (
-                        session.SessionId,
-                        "SessionStatusEvent",
-                        new [] { new { status } }).Forget ()));
-
-            await session.InitializeAsync (
+        public Task InitializeSession (InteractiveSessionDescription sessionDescription)
+            => GetSession ().InitializeAsync (
                 sessionDescription,
                 Context.Connection.ConnectionAbortedToken);
-
-            session.EvaluationService.Events.Subscribe (
-                new Observer<ICodeCellEvent> (evnt =>
-                    hubManager.SendConnectionAsync (
-                        session.SessionId,
-                        "CodeCellEvent",
-                        new [] { evnt }).Forget ()));
-
-            hubManager.BindClientSession (session);
-        }
-
-        InteractiveSession GetSession ()
-            => serviceProvider
-                .GetInteractiveSessionHubManager ()
-                .GetSession (Context.ConnectionId)
-                .Session;
 
         public Task<CodeCellId> InsertCodeCell (
             string initialBuffer,

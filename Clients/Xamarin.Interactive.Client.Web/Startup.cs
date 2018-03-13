@@ -46,6 +46,7 @@ namespace Xamarin.Interactive.Client.Web
             services.AddAuthentication (CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie ();
 
+            services.AddMemoryCache ();
             services.AddMvc ();
 
             services
@@ -53,8 +54,6 @@ namespace Xamarin.Interactive.Client.Web
                 .AddJsonProtocol (options => {
                     options.PayloadSerializerSettings = new InteractiveJsonSerializerSettings ();
                 });
-
-            services.AddSingleton<InteractiveSessionHubManager> ();
         }
 
         public void Configure (

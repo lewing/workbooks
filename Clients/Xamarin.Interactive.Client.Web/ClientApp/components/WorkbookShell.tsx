@@ -12,7 +12,7 @@ import { saveAs } from 'file-saver'
 import { loadTheme } from 'office-ui-fabric-react/lib/Styling';
 
 import { osMac } from '../utils'
-import { WorkbookSession, SessionStatus, SessionStatusEvent } from '../WorkbookSession'
+import { WorkbookSession, SessionEvent, SessionEventKind } from '../WorkbookSession'
 import { WorkbookCommandBar } from './WorkbookCommandBar'
 import { WorkbookEditor } from './WorkbookEditor'
 import { ResultRendererRegistry } from '../ResultRendererRegistry'
@@ -44,7 +44,7 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
         super()
 
         this.onDocumentKeyDown = this.onDocumentKeyDown.bind(this)
-        this.onSessionStatusEvent = this.onSessionStatusEvent.bind(this)
+        this.onSessionEvent = this.onSessionEvent.bind(this)
 
         this.evaluateWorkbook = this.evaluateWorkbook.bind(this)
         this.showPackageDialog = this.showPackageDialog.bind(this)
@@ -62,8 +62,8 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
         }
     }
 
-    private onSessionStatusEvent(session: WorkbookSession, sessionStatusEvent: SessionStatusEvent) {
-        if (sessionStatusEvent.status === SessionStatus.Ready) {
+    private onSessionEvent(session: WorkbookSession, sessionEvent: SessionEvent) {
+        if (sessionEvent.kind === SessionEventKind.Ready) {
             this.workspaceAvailable = true
             if (this.workbookEditor)
                 this.workbookEditor.setUpInitialState()
@@ -73,7 +73,7 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
     }
 
     async componentDidMount() {
-        this.shellContext.session.sessionStatusEvent.addListener(this.onSessionStatusEvent)
+        this.shellContext.session.sessionEvent.addListener(this.onSessionEvent)
 
         await this.shellContext.session.connect()
 
@@ -86,7 +86,7 @@ export class WorkbookShell extends React.Component<any, WorkbookShellState> {
     }
 
     componentWillUnmount() {
-        this.shellContext.session.sessionStatusEvent.removeListener(this.onSessionStatusEvent)
+        this.shellContext.session.sessionEvent.removeListener(this.onSessionEvent)
 
         document.addEventListener('keydown', this.onDocumentKeyDown)
 

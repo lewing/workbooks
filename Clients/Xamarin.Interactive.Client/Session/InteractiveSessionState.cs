@@ -5,6 +5,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using System;
+
 using Xamarin.Interactive.Client;
 using Xamarin.Interactive.CodeAnalysis;
 using Xamarin.Interactive.NuGet;
@@ -18,7 +20,7 @@ namespace Xamarin.Interactive.Session
 
         public InteractiveSessionDescription SessionDescription { get; }
         public IWorkspaceService WorkspaceService { get; }
-        public EvaluationService EvaluationService { get; }
+        public (EvaluationService service, IDisposable eventObserver) EvaluationService { get; }
         public PackageManagerService PackageManagerService { get; }
         public IWorkbookAppInstallation WorkbookApp { get; }
         public AgentConnection AgentConnection { get; }
@@ -26,7 +28,7 @@ namespace Xamarin.Interactive.Session
         InteractiveSessionState (
             InteractiveSessionDescription sessionDescription,
             IWorkspaceService workspaceService,
-            EvaluationService evaluationService,
+            (EvaluationService service, IDisposable eventObserver) evaluationService,
             PackageManagerService packageManagerService,
             IWorkbookAppInstallation workbookApp,
             AgentConnection agentConnection)
@@ -62,7 +64,7 @@ namespace Xamarin.Interactive.Session
 
         public InteractiveSessionState WithServices (
             IWorkspaceService workspaceService,
-            EvaluationService evaluationService,
+            (EvaluationService service, IDisposable eventObserver) evaluationService,
             PackageManagerService packageManagerService)
             => new InteractiveSessionState (
                 SessionDescription,

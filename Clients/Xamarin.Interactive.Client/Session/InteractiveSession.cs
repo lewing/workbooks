@@ -7,22 +7,23 @@ using System.Threading.Tasks;
 
 using Xamarin.Interactive.Client;
 using Xamarin.Interactive.CodeAnalysis;
+using Xamarin.Interactive.CodeAnalysis.Events;
 using Xamarin.Interactive.Logging;
 using Xamarin.Interactive.Messages;
 using Xamarin.Interactive.NuGet;
 
 namespace Xamarin.Interactive.Session
 {
+    using static InteractiveSessionEventKind;
+
     public sealed class InteractiveSession : IMessageService, IDisposable
     {
-        public static InteractiveSession CreateWorkbookSession (InteractiveSessionId sessionId = default)
-            => new InteractiveSession (sessionId, ClientSessionKind.Workbook, null);
+        public static InteractiveSession CreateWorkbookSession ()
+            => new InteractiveSession (ClientSessionKind.Workbook, null);
 
         internal static InteractiveSession CreateLiveInspectionSession (
-            ClientSessionUri liveInspectAgentUri,
-            InteractiveSessionId sessionId = default)
+            ClientSessionUri liveInspectAgentUri)
             => new InteractiveSession (
-                sessionId,
                 ClientSessionKind.LiveInspection,
                 liveInspectAgentUri
                     ?? throw new ArgumentNullException (nameof (liveInspectAgentUri)));
@@ -31,47 +32,51 @@ namespace Xamarin.Interactive.Session
         readonly ClientSessionUri liveInspectAgentUri;
         readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource ();
 
-        readonly Observable<InteractiveSessionStatus> status = new Observable<InteractiveSessionStatus> ();
-        public IObservable<InteractiveSessionStatus> Status => status;
+        readonly Observable<InteractiveSessionEvent> events = new Observable<InteractiveSessionEvent> ();
+        public IObservable<InteractiveSessionEvent> Events => events;
 
         bool isDisposed;
 
         InteractiveSessionState state = InteractiveSessionState.Create ();
         InteractiveSessionState State {
             get {
-                if (isDisposed)
-                    throw new ObjectDisposedException ($"{nameof (InteractiveSession)}: {SessionId}");
+                CheckDisposed ();
                 return state;
             }
 
             set => state = value;
         }
 
-        public InteractiveSessionId SessionId { get; }
-
-        internal EvaluationService EvaluationService => State.EvaluationService;
+        internal EvaluationService EvaluationService => State.EvaluationService.service;
         internal IWorkspaceService WorkspaceService => State.WorkspaceService;
         internal PackageManagerService PackageManagerService => State.PackageManagerService;
 
         InteractiveSession (
-            InteractiveSessionId sessionId,
             ClientSessionKind sessionKind,
             ClientSessionUri liveInspectAgentUri)
         {
-            SessionId = sessionId == default
-                ? Guid.NewGuid ()
-                : sessionId;
             this.sessionKind = sessionKind;
             this.liveInspectAgentUri = liveInspectAgentUri;
         }
 
+        void CheckDisposed ()
+        {
+            if (isDisposed)
+                throw new ObjectDisposedException (nameof (InteractiveSession));
+        }
+
         public void Dispose ()
         {
+            CheckDisposed ();
             isDisposed = true;
             State = default;
+            events.Observers.OnCompleted ();
             cancellationTokenSource.Cancel ();
             cancellationTokenSource.Dispose ();
         }
+
+        void PostEvent (InteractiveSessionEventKind eventKind, object data = null)
+            => events.Observers.OnNext (new InteractiveSessionEvent (eventKind, data));
 
         CancellationToken GetCancellationToken (CancellationToken cancellationToken = default)
             => cancellationTokenSource.Token.LinkWith (cancellationToken);
@@ -84,12 +89,12 @@ namespace Xamarin.Interactive.Session
 
             State = State.WithSessionDescription (sessionDescription);
 
-            status.Observers.OnNext (InteractiveSessionStatus.ConnectingToAgent);
+            PostEvent (ConnectingToAgent);
 
             await InitializeAgentConnectionAsync (
                 cancellationToken).ConfigureAwait (false);
 
-            status.Observers.OnNext (InteractiveSessionStatus.InitializingWorkspace);
+            PostEvent (InitializingWorkspace);
 
             var workspaceConfiguration = await WorkspaceConfiguration.CreateAsync (
                 State.AgentConnection,
@@ -122,13 +127,19 @@ namespace Xamarin.Interactive.Session
                     cancellationToken).ConfigureAwait (false);
             }
 
+            State.EvaluationService.eventObserver?.Dispose ();
+
             State = State.WithServices (
                 workspaceService,
-                evaluationService,
+                (evaluationService, evaluationService.Events.Subscribe (
+                    new Observer<ICodeCellEvent> (OnEvaluationServiceEvent))),
                 packageManagerService);
 
-            status.Observers.OnNext (InteractiveSessionStatus.Ready);
+            PostEvent (Ready);
         }
+
+        void OnEvaluationServiceEvent (ICodeCellEvent codeCellEvent)
+            => PostEvent (Evaluation, codeCellEvent);
 
         #region Agent Connection
 
@@ -141,7 +152,8 @@ namespace Xamarin.Interactive.Session
                     await State
                         .AgentConnection
                         .RefreshFeaturesAsync ().ConfigureAwait (false));
-                // PostEvent (ClientSessionEventKind.AgentFeaturesUpdated);
+
+                PostEvent (AgentFeaturesUpdated);
             }
 
             return State.AgentConnection;
@@ -161,7 +173,7 @@ namespace Xamarin.Interactive.Session
                     ((IDisposable)State.AgentConnection).Dispose ();
                 }
 
-                State.EvaluationService?.NotifyAgentDisconnected ();
+                State.EvaluationService.service?.NotifyAgentDisconnected ();
 
                 State = State.WithAgentConnection (new AgentConnection (agentType));
             }

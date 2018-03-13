@@ -36,16 +36,21 @@ export interface SessionDescription {
     targetPlatformIdentifier: string
 }
 
-export const enum SessionStatus {
+export const enum SessionEventKind {
     Uninitialized = 'Uninitialized',
     ConnectingToAgent = 'ConnectingToAgent',
     InitializingWorkspace = 'InitializingWorkspace',
     Ready = 'Ready',
-    AgentDisconnected = 'AgentDisconnected'
+    AgentFeaturesUpdated = 'AgentFeaturesUpdated',
+    AgentDisconnected = 'AgentDisconnected',
+    Evaluation = 'Evaluation'
 }
 
-export interface SessionStatusEvent {
-    status: SessionStatus
+type SessionEventType = ICodeCellEvent
+
+export interface SessionEvent {
+    kind: SessionEventKind
+    data?: SessionEventType
 }
 
 export interface PackageSource {
@@ -61,7 +66,7 @@ export interface PackageDescription {
 export class WorkbookSession {
     private hubConnection = new HubConnection('/session')
 
-    readonly sessionStatusEvent: Event<WorkbookSession, SessionStatusEvent>
+    readonly sessionEvent: Event<WorkbookSession, SessionEvent>
     readonly statusUIActionEvent: Event<WorkbookSession, StatusUIActionWithMessage>
     readonly codeCellEvent: Event<WorkbookSession, ICodeCellEvent>
 
@@ -71,65 +76,12 @@ export class WorkbookSession {
     }
 
     constructor() {
-        this.sessionStatusEvent = new Event(<WorkbookSession>this)
+        this.sessionEvent = new Event(<WorkbookSession>this)
         this.statusUIActionEvent = new Event(<WorkbookSession>this)
         this.codeCellEvent = new Event(<WorkbookSession>this)
 
-        this.hubConnection.on(
-            'SessionStatusEvent',
-            (e: SessionStatusEvent) => {
-                console.debug('Hub: SessionStatusEvent: %O', e.status)
-                this.sessionStatusEvent.dispatch(e)
-
-                let message: StatusUIActionWithMessage = {
-                    action: StatusUIAction.DisplayMessage,
-                    message: {
-                        kind: MessageKind.Status,
-                        severity: MessageSeverity.Info,
-                        showSpinner: true
-                    }
-                }
-
-                switch (e.status) {
-                    case SessionStatus.ConnectingToAgent:
-                        message.message!.text = catalog.getString('Connecting to agent…')
-                        break
-                    case SessionStatus.InitializingWorkspace:
-                        message.message!.text = catalog.getString('Initializing workspace…')
-                        break
-                    case SessionStatus.Ready:
-                        message.action = StatusUIAction.DisplayIdle
-                        break
-                    case SessionStatus.AgentDisconnected:
-                        message.message!.severity = MessageSeverity.Error
-                        message.message!.text = catalog.getString('Agent disconnected')
-                        message.message!.showSpinner = false
-                        break
-                    default:
-                        message.message = undefined
-                        break
-                }
-
-                if (message.message)
-                    this.statusUIActionEvent.dispatch(message)
-            })
-
-        this.hubConnection.on(
-            'StatusUIAction',
-            (action: StatusUIAction, message: Message) => {
-                console.debug('Hub: StatusUIAction: action: %O, message: %O', action, message)
-                this.statusUIActionEvent.dispatch({
-                    action: action,
-                    message: message
-                })
-            })
-
-        this.hubConnection.on(
-            'CodeCellEvent',
-            (e: ICodeCellEvent) => {
-                console.debug('Hub: CodeCellEvent: %O: %O', e.$type, e)
-                this.codeCellEvent.dispatch(e)
-            })
+        this.onSessionEventReceived = this.onSessionEventReceived.bind(this)
+        this.onSessionEventsComplete = this.onSessionEventsComplete.bind(this)
     }
 
     async connect(sessionDescription: SessionDescription = {
@@ -145,9 +97,58 @@ export class WorkbookSession {
 
         console.log('GetAvailableWorkbookTargets: %O', this.availableWorkbookTargets)
 
-        await this.hubConnection.invoke(
-            'OpenSession',
-            sessionDescription)
+        this.hubConnection.stream('ObserveSessionEvents')
+            .subscribe({
+                next: <(event: {}) => void>this.onSessionEventReceived,
+                complete: this.onSessionEventsComplete
+            })
+
+        await this.hubConnection.invoke('InitializeSession', sessionDescription)
+    }
+
+    onSessionEventReceived(event: SessionEvent): void {
+        console.log('WorkbookSession::onSessionEventReceived: %O, data: %O', event.kind, event.data)
+
+        this.sessionEvent.dispatch(event)
+
+        let message: StatusUIActionWithMessage = {
+            action: StatusUIAction.DisplayMessage,
+            message: {
+                kind: MessageKind.Status,
+                severity: MessageSeverity.Info,
+                showSpinner: true
+            }
+        }
+
+        switch (event.kind) {
+            case SessionEventKind.Evaluation:
+                this.codeCellEvent.dispatch(<ICodeCellEvent>event.data)
+                return
+            case SessionEventKind.ConnectingToAgent:
+                message.message!.text = catalog.getString('Connecting to agent…')
+                break
+            case SessionEventKind.InitializingWorkspace:
+                message.message!.text = catalog.getString('Initializing workspace…')
+                break
+            case SessionEventKind.Ready:
+                message.action = StatusUIAction.DisplayIdle
+                break
+            case SessionEventKind.AgentDisconnected:
+                message.message!.severity = MessageSeverity.Error
+                message.message!.text = catalog.getString('Agent disconnected')
+                message.message!.showSpinner = false
+                break
+            default:
+                message.message = undefined
+                break
+        }
+
+        if (message.message)
+            this.statusUIActionEvent.dispatch(message)
+    }
+
+    onSessionEventsComplete(): void {
+        this.disconnect()
     }
 
     disconnect(): Promise<void> {

@@ -16,7 +16,7 @@ import {
 import createMarkdownPlugin from 'draft-js-markdown-plugin'
 import { List, Map, Set } from 'immutable'
 import { CodeCell } from './CodeCell'
-import { WorkbookSession, SessionStatus, SessionStatusEvent } from '../WorkbookSession'
+import { WorkbookSession, SessionEvent, SessionEventKind } from '../WorkbookSession'
 import { MonacoCellMapper, WorkbookCompletionItemProvider, WorkbookHoverProvider, WorkbookSignatureHelpProvider } from '../utils/MonacoUtils'
 import { EditorMessage, EditorMessageType, EditorKeys } from '../utils/EditorMessages'
 import { getNextBlockFor, getPrevBlockFor, isBlockBackwards } from '../utils/DraftStateUtils'
@@ -60,7 +60,7 @@ export class WorkbookEditor extends React.Component<WorkbooksEditorProps, Workbo
     constructor(props: WorkbooksEditorProps) {
         super(props);
 
-        this.onSessionStatusEvent = this.onSessionStatusEvent.bind(this)
+        this.onSessionEvent = this.onSessionEvent.bind(this)
 
         this.subscriptors = []
 
@@ -91,17 +91,17 @@ export class WorkbookEditor extends React.Component<WorkbooksEditorProps, Workbo
                 new WorkbookSignatureHelpProvider(this.props.shellContext, this)))
     }
 
-    private onSessionStatusEvent(session: WorkbookSession, sessionStatusEvent: SessionStatusEvent) {
-        this.setState({ readOnly: sessionStatusEvent.status !== SessionStatus.Ready })
+    private onSessionEvent(session: WorkbookSession, sessionEvent: SessionEvent) {
+        this.setState({ readOnly: sessionEvent.kind !== SessionEventKind.Ready })
     }
 
     componentDidMount() {
-        this.props.shellContext.session.sessionStatusEvent.addListener(this.onSessionStatusEvent)
+        this.props.shellContext.session.sessionEvent.addListener(this.onSessionEvent)
         this.focus()
     }
 
     componentWillUnmount() {
-        this.props.shellContext.session.sessionStatusEvent.removeListener(this.onSessionStatusEvent)
+        this.props.shellContext.session.sessionEvent.removeListener(this.onSessionEvent)
         for (let ticket of this.monacoProviderTickets)
             ticket.dispose()
     }

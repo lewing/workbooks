@@ -13,8 +13,8 @@ import {
     WorkbookTarget,
     DotNetSdk,
     WorkbookSession,
-    SessionStatus,
-    SessionStatusEvent
+    SessionEvent,
+    SessionEventKind
 } from '../WorkbookSession'
 
 import { WorkbookShellContext } from './WorkbookShell';
@@ -37,7 +37,7 @@ export class WorkbookCommandBar extends React.Component<WorkbookCommandBarProps,
     constructor(props: WorkbookCommandBarProps) {
         super(props)
 
-        this.onSessionStatusEvent = this.onSessionStatusEvent.bind(this)
+        this.onSessionEvent = this.onSessionEvent.bind(this)
 
         this.state = {
             canOpenWorkbook: false,
@@ -45,16 +45,16 @@ export class WorkbookCommandBar extends React.Component<WorkbookCommandBarProps,
         }
     }
 
-    private onSessionStatusEvent(session: WorkbookSession, sessionStatusEvent: SessionStatusEvent) {
-        this.setState({ canOpenWorkbook: sessionStatusEvent.status === SessionStatus.Ready })
+    private onSessionEvent(session: WorkbookSession, sessionEvent: SessionEvent) {
+        this.setState({ canOpenWorkbook: sessionEvent.kind === SessionEventKind.Ready })
     }
 
     componentDidMount() {
-        this.props.shellContext.session.sessionStatusEvent.addListener(this.onSessionStatusEvent)
+        this.props.shellContext.session.sessionEvent.addListener(this.onSessionEvent)
     }
 
     componentWillUnmount() {
-        this.props.shellContext.session.sessionStatusEvent.removeListener(this.onSessionStatusEvent)
+        this.props.shellContext.session.sessionEvent.removeListener(this.onSessionEvent)
     }
 
     setWorkbookTargets(targets: WorkbookTarget[]) {
