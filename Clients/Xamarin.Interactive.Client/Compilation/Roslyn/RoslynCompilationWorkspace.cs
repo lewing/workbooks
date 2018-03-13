@@ -345,6 +345,17 @@ namespace Xamarin.Interactive.Compilation.Roslyn
 
         public WorkspaceConfiguration Configuration { get; }
 
+        static readonly string [] byNameImplicitReferences = {
+            // for 'dynamic':
+            "Microsoft.CSharp",
+
+            // for when corlib does not provide SVT; see
+            // https://github.com/Microsoft/workbooks/issues/211
+            typeof (object).Assembly.GetType ("System.ValueTuple") == null
+                ? "System.ValueTuple"
+                : null
+        };
+
         public RoslynCompilationWorkspace (WorkspaceConfiguration configuration)
         {
             if (configuration == null)
@@ -374,29 +385,12 @@ namespace Xamarin.Interactive.Compilation.Roslyn
                 warningId => ReportDiagnostic.Suppress);
             initialReferences = dependencyResolver.ResolveDefaultReferences ();
 
-            var byNameImplicitReferences = new Tuple<string, Func<bool>> [] {
-                Tuple.Create<string, Func<bool>> ("Microsoft.CSharp", () => true),
-
-                // Add an implicit by name reference to System.ValueTuple if and only if the
-                // agent is Console or WPF, and the current runtime does not have SVT in corlib.
-                // This check makes sense because the Console and WPF agents run on the same
-                // runtime as the current client. The other agents are on runtimes controlled
-                // by us, and we can be sure that System.ValueTuple will be part of corlib on
-                // those agents. A bug in .NET 4.7 means we can't just always implicitly add
-                // the reference and have the runtime figure out what should be done. This bug
-                // is fixed in .NET 4.7.1.
-                //Tuple.Create<string, Func<bool>> ("System.ValueTuple", () => {
-                //    return (agentType == AgentType.Console || agentType == AgentType.WPF) &&
-                //        typeof (object).Assembly.GetType ("System.ValueTuple") == null;
-                //})
-            };
-
             foreach (var implicitReference in byNameImplicitReferences) {
-                if (!implicitReference.Item2 ())
+                if (implicitReference == null)
                     continue;
 
                 var assembly = DependencyResolver.ResolveWithoutReferences (
-                    new AssemblyName (implicitReference.Item1));
+                    new AssemblyName (implicitReference));
                 if (assembly != null)
                     initialReferences = initialReferences.Add (
                         MetadataReference.CreateFromFile (assembly.Path));
