@@ -19,14 +19,12 @@ namespace Xamarin.Interactive
         public static InteractiveInstallation Default { get; private set; }
 
         public static void InitializeDefault (
-            bool isMac,
-            string buildPath,
             InteractiveInstallationPaths installationPaths = null)
         {
             if (Default != null)
                 throw new InvalidOperationException ("InitializeDefault has already been called");
 
-            Default = new InteractiveInstallation (isMac, buildPath, installationPaths);
+            Default = new InteractiveInstallation (installationPaths);
         }
 
         readonly Dictionary<AgentType, List<string>> agentAssemblyPaths
@@ -42,17 +40,11 @@ namespace Xamarin.Interactive
 
         public string BuildPath { get; }
 
-        public bool IsMac { get; }
-
         InteractiveInstallation (
-            bool isMac,
-            string buildPath,
             InteractiveInstallationPaths installationPaths)
         {
-            IsMac = isMac;
-
             // May come in null if initialized by an installed app
-            BuildPath = buildPath ?? String.Empty;
+            BuildPath = (string)DevEnvironment.RepositoryRootDirectory ?? string.Empty;
 
             workbooksClientInstallPath = installationPaths?.WorkbooksClientInstallPath;
             inspectorClientInstallPath = installationPaths?.InspectorClientInstallPath;
@@ -127,18 +119,23 @@ namespace Xamarin.Interactive
 
             string appFileName;
 
-            if (IsMac) {
+            switch (HostEnvironment.OS) {
+            case HostOS.macOS:
                 appFileName = clientSessionKind == ClientSessionKind.LiveInspection
                     ? "Xamarin Inspector.app"
                     : "Xamarin Workbooks.app";
                 searchPaths.Add (Path.Combine (
                     BuildPath, "Clients", "Xamarin.Interactive.Client.Mac", "bin"));
-            } else {
+                break;
+            case HostOS.Windows:
                 appFileName = clientSessionKind == ClientSessionKind.LiveInspection
                     ? "Xamarin Inspector.exe"
                     : "Xamarin Workbooks.exe";
                 searchPaths.Add (Path.Combine (
                     BuildPath, "Clients", "Xamarin.Interactive.Client.Windows", "bin"));
+                break;
+            default:
+                throw new NotImplementedException ();
             }
 
             var foundPaths = LocateFiles (searchPaths, appFileName).ToList ();

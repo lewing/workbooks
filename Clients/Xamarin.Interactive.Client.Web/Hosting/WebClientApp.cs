@@ -28,7 +28,7 @@ namespace Xamarin.Interactive.Client.Web.Hosting
 
     sealed class WebClientApp : ClientApp
     {
-        sealed class WebHostEnvironment : HostEnvironment
+        sealed class WebHostEnvironment : ClientAppHostEnvironment
         {
             public override HostOS OSName { get; }
                 = Environment.OSVersion.Platform == PlatformID.Unix
@@ -64,7 +64,7 @@ namespace Xamarin.Interactive.Client.Web.Hosting
         protected override IPreferenceStore CreatePreferenceStore ()
             => new MemoryOnlyPreferenceStore ();
 
-        protected override HostEnvironment CreateHostEnvironment ()
+        protected override ClientAppHostEnvironment CreateHostEnvironment ()
             => new WebHostEnvironment ();
 
         protected override IFileSystem CreateFileSystem ()
