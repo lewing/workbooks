@@ -6,7 +6,7 @@
 // Licensed under the MIT License.
 
 import * as React from 'react'
-import { CodeCellResult } from '../evaluation'
+import { RepresentedResult } from '../evaluation'
 import {
     ResultRenderer,
     ResultRendererRepresentation
@@ -20,7 +20,7 @@ import {
 import './ImageRenderer.scss'
 import { randomReactKey } from '../utils';
 
-export default function ImageRendererFactory(result: CodeCellResult) {
+export default function ImageRendererFactory(result: RepresentedResult) {
     return result.valueRepresentations &&
         result.valueRepresentations.some(r => r.$type === "Xamarin.Interactive.Representations.Image")
         ? new ImageRenderer
@@ -37,7 +37,7 @@ interface ImageValue {
 }
 
 class ImageRenderer implements ResultRenderer {
-    getRepresentations(result: CodeCellResult) {
+    getRepresentations(result: RepresentedResult) {
         const reps: ResultRendererRepresentation[] = []
 
         if (!result.valueRepresentations)

@@ -94,6 +94,11 @@ namespace Xamarin.Interactive.Client.Web.Hubs
                 evaluateAll,
                 Context.Connection.ConnectionAbortedToken);
 
+        public Task<IInteractiveObject> Interact (string handle)
+            => GetSession().EvaluationService.InteractAsync(
+                long.Parse (handle),
+                cancellationToken: Context.Connection.ConnectionAbortedToken);
+
         public Task<Hover> GetHover (
             string codeCellId,
             Position position)

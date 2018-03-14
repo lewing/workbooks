@@ -71,44 +71,33 @@ namespace Xamarin.Interactive.Representations
             if (Value is RepresentedObject)
             {
                 var representation = Value as RepresentedObject;
-                serializer.Property("representedType", representation.RepresentedType?.Name);
-                for (var i = 0; i < representation.Count; i++) {
-                    serializer.Property (i.ToString (), new JsonRepresentation (representation [i]));
-                }
+                //serializer.Property("representedType", representation.RepresentedType.ToSerializableName());
+                serializer.Property ("representations", representation.Select (v => new JsonRepresentation (v)));
             }
 
-            if (Value is InteractiveObject) {
+            if (Value is InteractiveObjectBase) {
+                var baseObject = Value as InteractiveObjectBase;
+                serializer.Property ("handle", baseObject.Handle.ToString ());
+                serializer.Property ("representedObjectHandle", baseObject.RepresentedObjectHandle.ToString());
+            }
+
+            if (Value is InteractiveEnumerable) {
+                var enumerableObject = Value as InteractiveEnumerable;
+                serializer.Property ("isLastSlice", enumerableObject.IsLastSlice);
+                serializer.Property ("count", enumerableObject.Count);
+                if (enumerableObject.Slice != null)
+                    serializer.Property ("slice", enumerableObject.Slice.Select(v => new JsonRepresentation (v)));
+            }
+
+            if (Value is ReflectionInteractiveObject) {
                 var reflectedObject = Value as InteractiveObject;
-                serializer.Property ("handle", reflectedObject.Handle.ToString ());
-                serializer.Property ("representedObjectHandle", reflectedObject.RepresentedObjectHandle.ToString());
                 serializer.Property ("isExpanded", reflectedObject.Members != null || !reflectedObject.HasMembers);
                 if (reflectedObject.Members != null) {
-                    for (var i = 0; i < reflectedObject.Members.Count(); i++)
-                    {
+                    for (var i = 0; i < reflectedObject.Members.Count(); i++) {
                         var member = reflectedObject.Members[i];
                         var name = member.Name;
                         var value = reflectedObject.Values[i];
-                        switch (value) {
-                        case RepresentedObject _:
-                        case InteractiveObject _:
-                            serializer.Property (name, new JsonRepresentation (value));
-                            break;
-                        case int _:
-                        case short _:
-                        case SByte _:
-                        case uint _:
-                        case ushort _:
-                        case byte _:
-                        case double _:
-                        case float _:
-                        case Enum _:
-                            serializer.Property (name, (double)value);
-                            break;
-                        case long _:
-                        default:
-                            serializer.Property (name, value?.ToString ());
-                            break;
-                        }
+                        serializer.Property(name, value);
                     }
                 }
             }
