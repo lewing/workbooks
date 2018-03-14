@@ -41,7 +41,6 @@ namespace Xamarin.Interactive.Client.Web
             if (Directory.Exists (searchPath))
                 WorkbookAppInstallation.RegisterSearchPath (searchPath);
 
-            SingleThreadSynchronizationContext.StartRunLoopAsBackgroundThread ();
             services.AddSingleton (new WebClientAppContainer ());
 
             services.AddAuthentication (CookieAuthenticationDefaults.AuthenticationScheme)
