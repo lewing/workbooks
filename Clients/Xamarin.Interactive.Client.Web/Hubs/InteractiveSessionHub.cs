@@ -95,6 +95,11 @@ namespace Xamarin.Interactive.Client.Web.Hubs
                 evaluateAll,
                 Context.Connection.ConnectionAbortedToken);
 
+        public Task<IInteractiveObject> Interact (string handle)
+            => GetSession().EvaluationService.InteractAsync(
+                long.Parse (handle),
+                cancellationToken: Context.Connection.ConnectionAbortedToken);
+
         public Task<MonacoHover> GetHover (
             string codeCellId,
             Position position)
@@ -127,19 +132,6 @@ namespace Xamarin.Interactive.Client.Web.Hubs
                 packages,
                 Context.Connection.ConnectionAbortedToken);
             return packageManagerService.GetInstalledPackages ();
-        }
-
-        public async Task<IInteractiveObject> Interact (string handle)
-        {
-            var sessionState = serviceProvider
-                .GetInteractiveSessionHubManager ()
-                .GetSession (Context.ConnectionId);
-
-            var interactiveObject = await sessionState
-                .ClientSession.Agent.Api.InteractAsync (long.Parse (handle),
-                new InteractiveObject.ReadAllMembersInteractMessage ());
-
-            return interactiveObject;
         }
     }
 }

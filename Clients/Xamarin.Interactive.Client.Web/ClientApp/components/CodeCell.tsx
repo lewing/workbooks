@@ -20,11 +20,12 @@ import {
     ICodeCellEvent,
     CodeCellEventType,
     CodeCellUpdate,
-    CodeCellResult,
+    RepresentedResult,
     CodeCellResultHandling,
     CapturedOutputSegment,
     CodeCellEvaluationStatus,
-    CodeCellEvaluationFinished
+    CodeCellEvaluationFinished,
+    CodeCellResult
 } from '../evaluation'
 
 import {

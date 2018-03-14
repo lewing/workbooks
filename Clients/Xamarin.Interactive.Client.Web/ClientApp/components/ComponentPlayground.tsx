@@ -8,7 +8,7 @@
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
 
-import { CodeCellResult, CodeCellResultHandling, CodeCellEventType } from '../evaluation'
+import { RepresentedResult, CodeCellResult, CodeCellResultHandling, CodeCellEventType } from '../evaluation'
 import { ResultRendererRegistry } from '../ResultRendererRegistry'
 import { MockedCodeCellView } from './CodeCellView';
 

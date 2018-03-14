@@ -5,7 +5,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-import { CodeCellResult } from './evaluation'
+import { RepresentedResult } from './evaluation'
 import { ResultRendererFactory, ResultRenderer } from './rendering'
 
 import NullRendererFactory from './renderers/NullRenderer'
@@ -16,6 +16,7 @@ import ImageRendererFactory from './renderers/ImageRenderer'
 import VerbatimHtmlRendererFactory from './renderers/VerbatimHtmlRenderer'
 import TestRendererFactory from './renderers/TestRenderer'
 import InteractiveObjectRendererFactory from './renderers/InteractiveObjectRenderer'
+import EnumerableRendererFactory from './renderers/EnumerableRenderer'
 
 export class ResultRendererRegistry {
     private rendererFactories: ResultRendererFactory[] = []
@@ -24,7 +25,7 @@ export class ResultRendererRegistry {
         this.rendererFactories.push(factory)
     }
 
-    getRenderers(result: CodeCellResult): ResultRenderer[] {
+    getRenderers(result: RepresentedResult): ResultRenderer[] {
         return <ResultRenderer[]>this.rendererFactories
             .map(f => f(result))
             .filter(f => f !== null)
@@ -37,6 +38,7 @@ export class ResultRendererRegistry {
         registry.register(ColorRendererFactory)
         registry.register(ImageRendererFactory)
         registry.register(VerbatimHtmlRendererFactory)
+        registry.register(EnumerableRendererFactory)
 
         // These are 'catch all' and should always be last
         registry.register(InteractiveObjectRendererFactory)

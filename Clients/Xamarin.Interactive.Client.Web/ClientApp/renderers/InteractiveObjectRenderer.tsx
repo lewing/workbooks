@@ -5,7 +5,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 import * as React from 'react'
-import { CodeCellResult } from '../evaluation';
+import { RepresentedResult } from '../evaluation';
 import { ResultRenderer, ResultRendererRepresentation } from '../rendering'
 import {
     GroupedList,
@@ -23,8 +23,9 @@ import {
   } from 'office-ui-fabric-react/lib/utilities/selection/index';
 import { randomReactKey } from '../utils';
 import { WorkbookShellContext } from '../components/WorkbookShell';
+import { RepresentedObjectRepresentation } from './RepresentedObjectRenderer';
 
-export default function InteractiveObjectRendererFactory(result: CodeCellResult) {
+export default function InteractiveObjectRendererFactory(result: RepresentedResult) {
     return result.valueRepresentations &&
         result.valueRepresentations.some(r => r.$type === "Xamarin.Interactive.Representations.ReflectionInteractiveObject")
         ? new InteractiveObjectRenderer
@@ -33,6 +34,7 @@ export default function InteractiveObjectRendererFactory(result: CodeCellResult)
 
 interface InteractiveObjectProps {
     object: InteractiveObjectValue
+    context: WorkbookShellContext
 }
 
 interface InteractiveObjectValue {
@@ -42,7 +44,7 @@ interface InteractiveObjectValue {
 }
 
 class InteractiveObjectRenderer implements ResultRenderer {
-    getRepresentations(result: CodeCellResult, context: WorkbookShellContext) {
+    getRepresentations(result: RepresentedResult, context: WorkbookShellContext) {
         const reps: ResultRendererRepresentation[] = []
 
         if (!result.valueRepresentations)
@@ -69,10 +71,7 @@ class InteractiveObjectRenderer implements ResultRenderer {
     async interact(rep: ResultRendererRepresentation):
         Promise<ResultRendererRepresentation>
     {
-        const props = rep.componentProps as {
-            object: InteractiveObjectValue,
-            context: WorkbookShellContext
-        }
+        const props = rep.componentProps as InteractiveObjectProps
 
         if (!props.context)
             return rep;
@@ -99,10 +98,24 @@ class InteractiveObjectRepresentation extends React.Component<InteractiveObjectP
 
     render() {
         const obj = this.props.object as any
+        const props = {
+            object: obj,
+            context: this.props.context
+        }
         return (
             <ul>
                 {Object.keys(obj).map(key => {
-                    return <li key={key}><b>"{key}":</b> {obj[key].toString()}</li>
+                    var member = obj[key]
+                    const props = {
+                        object: member,
+                        context: this.props.context
+                    }
+                    const ro = member.$type === "Xamarin.Interactive.Representations.RepresentedObject"
+
+                    if (ro)
+                        return <li key={key}><b>"{key}":</b> <RepresentedObjectRepresentation {...props} /></li>
+                    else
+                        return <li key={key}><b>"{key}":</b> {member.toString()}</li>
                 })}
             </ul>
         )

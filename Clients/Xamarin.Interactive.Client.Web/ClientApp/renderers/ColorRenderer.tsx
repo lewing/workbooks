@@ -6,7 +6,7 @@
 // Licensed under the MIT License.
 
 import * as React from 'react'
-import { CodeCellResult } from '../evaluation'
+import { RepresentedResult } from '../evaluation'
 import {
     ResultRenderer,
     ResultRendererRepresentation
@@ -17,7 +17,7 @@ import {
 
 import { randomReactKey } from '../utils';
 
-export default function ColorRendererFactory(result: CodeCellResult) {
+export default function ColorRendererFactory(result: RepresentedResult) {
     return result.valueRepresentations &&
         result.valueRepresentations.some(r => r.$type === "Xamarin.Interactive.Representations.Color")
         ? new ColorRenderer
@@ -35,7 +35,7 @@ interface ColorValue {
 }
 
 class ColorRenderer implements ResultRenderer {
-    getRepresentations(result: CodeCellResult) {
+    getRepresentations(result: RepresentedResult) {
         const reps: ResultRendererRepresentation[] = []
 
         if (!result.valueRepresentations)
