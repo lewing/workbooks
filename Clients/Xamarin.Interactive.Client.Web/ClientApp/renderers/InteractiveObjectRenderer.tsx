@@ -23,7 +23,7 @@ import {
   } from 'office-ui-fabric-react/lib/utilities/selection/index';
 import { randomReactKey } from '../utils';
 import { WorkbookShellContext } from '../components/WorkbookShell';
-import { RepresentedObjectRepresentation } from './RepresentedObjectRenderer';
+import {RepresentedObjectRenderer, RepresentedObjectRepresentation } from './RepresentedObjectRenderer';
 
 export default function InteractiveObjectRendererFactory(result: RepresentedResult) {
     return result.valueRepresentations &&
@@ -35,6 +35,7 @@ export default function InteractiveObjectRendererFactory(result: RepresentedResu
 interface InteractiveObjectProps {
     object: InteractiveObjectValue
     context: WorkbookShellContext
+    memberProps: any
 }
 
 interface InteractiveObjectValue {
@@ -44,6 +45,10 @@ interface InteractiveObjectValue {
 }
 
 class InteractiveObjectRenderer implements ResultRenderer {
+    constructor() {
+        this.interact = this.interact.bind(this)
+        this.buildProps = this.buildProps.bind(this)
+    }
     getRepresentations(result: RepresentedResult, context: WorkbookShellContext) {
         const reps: ResultRendererRepresentation[] = []
 
@@ -59,10 +64,7 @@ class InteractiveObjectRenderer implements ResultRenderer {
                 displayName: 'Object Properties',
                 key: randomReactKey(),
                 component: InteractiveObjectRepresentation,
-                componentProps: {
-                    object: interactiveObject,
-                    context: context,
-                },
+                componentProps: this.buildProps (value, context),
                 interact: this.interact
             })
         }
@@ -82,12 +84,21 @@ class InteractiveObjectRenderer implements ResultRenderer {
         const obj = await props.context.session.interact(props.object.handle)
         return ({
             ...rep,
-            componentProps: {
-                object: obj,
-                context: props.context
-            },
+            componentProps: this.buildProps(obj, props.context),
             interact: undefined
         })
+    }
+    buildProps(object: any, context: WorkbookShellContext): InteractiveObjectProps
+    {
+        let memberProps: any = {}
+        Object.keys(object).map(key => {
+            memberProps[key] = RepresentedObjectRenderer.buildProps(object[key], context);
+        });
+        return {
+            object: object,
+            context: context,
+            memberProps: memberProps
+        }
     }
 }
 
@@ -98,22 +109,15 @@ class InteractiveObjectRepresentation extends React.Component<InteractiveObjectP
 
     render() {
         const obj = this.props.object as any
-        const props = {
-            object: obj,
-            context: this.props.context
-        }
         return (
             <ul>
                 {Object.keys(obj).map(key => {
                     var member = obj[key]
-                    const props = {
-                        object: member,
-                        context: this.props.context
-                    }
-                    const ro = member.$type === "Xamarin.Interactive.Representations.RepresentedObject"
+                    const memberProps = this.props.memberProps[key];
+                    const ro = member.$type === RepresentedObjectRenderer.typeName;
 
                     if (ro)
-                        return <li key={key}><b>"{key}":</b> <RepresentedObjectRepresentation {...props} /></li>
+                        return <li key={key}><b>"{key}":</b> <RepresentedObjectRepresentation {...memberProps} /></li>
                     else
                         return <li key={key}><b>"{key}":</b> {member.toString()}</li>
                 })}

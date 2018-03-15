@@ -238,7 +238,7 @@ export abstract class CodeCellView<
                             const rep = resultState.representations[resultState.selectedRepresentationIndex]
                             rep.interact && this.interact(resultState.selectedRepresentationIndex).then(r => console.log("updated"))
 
-                            repElem = <rep.component key={randomReactKey()} {...rep.componentProps} />
+                            repElem = <rep.component key={"codeCellView:"+rep.key} {...rep.componentProps} />
                         }
 
                         return (
