@@ -9,6 +9,7 @@ import * as React from 'react'
 
 import { RepresentedResult } from './evaluation'
 import { WorkbookShellContext } from './components/WorkbookShell';
+import { extname } from 'path';
 
 export const enum ResultRendererRepresentationOptions {
     None = 0,
@@ -54,4 +55,13 @@ export interface ResultRendererRepresentation {
     options?: ResultRendererRepresentationOptions,
     interact?(rep: ResultRendererRepresentation): Promise<ResultRendererRepresentation>
     renderComponent?(rep: ResultRendererRepresentation): any
+}
+
+export interface RepresentationMap<K,V> {
+    [K: string]: V
+}
+
+export interface RepresentedObjectState {
+    representations: RepresentationMap<string, ResultRendererRepresentation>
+    selectedRepresentation: string
 }

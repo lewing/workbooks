@@ -37,6 +37,7 @@ interface ImageValue {
 }
 
 class ImageRenderer implements ResultRenderer {
+    public static readonly typeName = "Xamarin.Interactive.Representations.Image"
     getRepresentations(result: RepresentedResult) {
         const reps: ResultRendererRepresentation[] = []
 
@@ -44,7 +45,7 @@ class ImageRenderer implements ResultRenderer {
             return reps
 
         for (const value of result.valueRepresentations) {
-            if (value.$type !== "Xamarin.Interactive.Representations.Image")
+            if (value.$type !== ImageRenderer.typeName)
                 continue
 
             const image = (value as ImageValue)

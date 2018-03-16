@@ -10,7 +10,9 @@ import { RepresentedResult } from '../evaluation'
 import {
     ResultRenderer,
     ResultRendererRepresentation,
-    ResultRendererRepresentationOptions
+    ResultRendererRepresentationOptions,
+    RepresentedObjectState,
+    RepresentationMap
 } from '../rendering'
 import { randomReactKey } from '../utils';
 import { WorkbookShellContext, WorkbookShell } from '../components/WorkbookShell';
@@ -35,20 +37,13 @@ interface RepresentedObjectProps {
     state: RepresentedObjectState
 }
 
-export interface MyMap<K,V> {
-    [K: string]: V
-}
-
-interface RepresentedObjectState {
-    representations: MyMap<string, ResultRendererRepresentation>
-    selectedRepresentation: string
-}
-
 export class RepresentedObjectRenderer implements ResultRenderer {
+    public static readonly typeName = "Xamarin.Interactive.Representations.RepresentedObject"
+
     constructor() {
         this.buildProps = this.buildProps.bind(this)
     }
-    public static typeName = "Xamarin.Interactive.Representations.RepresentedObject"
+
     getRepresentations(result: RepresentedResult, context: WorkbookShellContext) {
         const reps: ResultRendererRepresentation[] = []
 
@@ -69,9 +64,11 @@ export class RepresentedObjectRenderer implements ResultRenderer {
         }
         return reps
     }
+
     buildProps(object: any, context: WorkbookShellContext): RepresentedObjectProps {
         return RepresentedObjectRenderer.buildProps(object, context);
     }
+
     public static buildProps(object: any, context: WorkbookShellContext): RepresentedObjectProps {
         const result = {
             valueRepresentations: object.representations,
@@ -85,7 +82,7 @@ export class RepresentedObjectRenderer implements ResultRenderer {
             ? []
             : reps.reduce((a, b) => a.concat(b))
 
-        const mapReps: MyMap<string, ResultRendererRepresentation> = {}
+        const mapReps: RepresentationMap<string, ResultRendererRepresentation> = {}
         flatReps.map((r, i) => {
             mapReps[r.key] = r
         })
@@ -117,7 +114,9 @@ export class RepresentedObjectRepresentation extends React.Component<Represented
             var newRep = await rep.interact (rep)
             if (rep !== newRep) {
                 this.state.representations[key] = newRep
-                this.setState({selectedRepresentation: key})
+                this.setState({
+                    selectedRepresentation: key
+                })
             }
         }
     }

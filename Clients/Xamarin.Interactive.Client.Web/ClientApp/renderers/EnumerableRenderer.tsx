@@ -102,16 +102,8 @@ class EnumerableRepresentation extends React.Component<EnumerableProps> {
         const sliceProps = this.props.sliceProps || []
         return (<ul key={this.props.object.handle}>
             {Object.keys(slice).map((sliceKey, i) => {
-                const obj = slice[i] as any
                 const props = sliceProps[i]
-                const ro = obj.$type === RepresentedObjectRenderer.typeName;
-                return (
-                    [<li key={i}>{i}: {ro && <RepresentedObjectRepresentation {...props} />}</li>,
-                        <ol>
-                            {!ro && Object.keys(obj).map(key => {
-                                return <li key={key}><b>"{key}":</b> {obj[key].toString()}</li>
-                            })}
-                    </ol>])
+                return <li key={i}><b>{i}</b>: <RepresentedObjectRepresentation {...props} /></li>
             })}
         </ul>)
     }
