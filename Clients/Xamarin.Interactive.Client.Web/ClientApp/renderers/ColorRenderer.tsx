@@ -35,6 +35,8 @@ interface ColorValue {
 }
 
 class ColorRenderer implements ResultRenderer {
+    public static readonly typeName = "Xamarin.Interactive.Representations.Color"
+
     getRepresentations(result: RepresentedResult) {
         const reps: ResultRendererRepresentation[] = []
 
@@ -42,7 +44,7 @@ class ColorRenderer implements ResultRenderer {
             return reps
 
         for (const value of result.valueRepresentations) {
-            if (value.$type !== "Xamarin.Interactive.Representations.Color")
+            if (value.$type !== ColorRenderer.typeName)
                 continue
 
             const color = (value as ColorValue)

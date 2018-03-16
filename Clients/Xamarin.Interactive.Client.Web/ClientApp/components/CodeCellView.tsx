@@ -24,21 +24,15 @@ import {
 import { randomReactKey } from '../utils'
 import { EditorMessage, EditorMessageType } from '../utils/EditorMessages'
 import { CodeCellResult, CodeCellResultHandling, Diagnostic, CapturedOutputSegment } from '../evaluation'
-import { ResultRendererRepresentation, ResultRendererRepresentationOptions } from '../rendering'
+import { ResultRendererRepresentation, ResultRendererRepresentationOptions, RepresentedObjectState, RepresentationMap } from '../rendering'
 import { ResultRendererRegistry } from '../ResultRendererRegistry'
 import { CapturedOutputView } from './CapturedOutputView'
 
 import './CodeCellView.scss'
 import { WorkbookShellContext } from './WorkbookShell';
 
-export interface CodeCellResultRendererState {
+export interface CodeCellResultRendererState extends RepresentedObjectState {
     result: CodeCellResult
-    representations: Map<string, ResultRendererRepresentation>
-    selectedRepresentationIndex: string
-}
-
-export interface Map<K,V> {
-    [K: string]: V
 }
 
 export const enum CodeCellViewStatus {
@@ -111,7 +105,7 @@ export abstract class CodeCellView<
             ? []
             : reps.reduce((a, b) => a.concat(b))
 
-        const mapReps: Map<string, ResultRendererRepresentation> = {}
+        const mapReps: RepresentationMap<string, ResultRendererRepresentation> = {}
         flatReps.map((r, i) => {
             mapReps[r.key] = r
         })
@@ -119,7 +113,7 @@ export abstract class CodeCellView<
         const rendererState = {
             result: result,
             representations: mapReps,
-            selectedRepresentationIndex: flatReps[0].key
+            selectedRepresentation: flatReps[0].key
         }
 
         if (!resultHandling)
@@ -134,17 +128,17 @@ export abstract class CodeCellView<
             case CodeCellResultHandling.Replace:
                 if (this.state.results[0]) {
                     const oldReps = this.state.results[0].representations;
-                    const oldKey = this.state.results[0].selectedRepresentationIndex;
+                    const oldKey = this.state.results[0].selectedRepresentation;
 
                     if (rendererState.representations[oldKey])
-                        rendererState.selectedRepresentationIndex = oldKey;
+                        rendererState.selectedRepresentation = oldKey;
                     else {
                         const prevKeys = Object.keys(oldReps);
                         if (prevKeys.length == flatReps.length &&
                             Object.keys(oldReps)
                                 .map((key, index) => typeof oldReps[key] === typeof flatReps[index])
                                 .reduce((a, b) => a && b)) {
-                            rendererState.selectedRepresentationIndex = flatReps[prevKeys.indexOf(oldKey)].key
+                            rendererState.selectedRepresentation = flatReps[prevKeys.indexOf(oldKey)].key
                         }
                     }
                 }
@@ -234,9 +228,9 @@ export abstract class CodeCellView<
                             : null
 
                         let repElem = null
-                        if (resultState.selectedRepresentationIndex) {
-                            const rep = resultState.representations[resultState.selectedRepresentationIndex]
-                            rep.interact && this.interact(resultState.selectedRepresentationIndex).then(r => console.log("updated"))
+                        if (resultState.selectedRepresentation) {
+                            const rep = resultState.representations[resultState.selectedRepresentation]
+                            rep.interact && this.interact(resultState.selectedRepresentation).then(r => console.log("updated"))
 
                             repElem = <rep.component key={"codeCellView:"+rep.key} {...rep.componentProps} />
                         }
@@ -250,9 +244,9 @@ export abstract class CodeCellView<
                                 </div>
                                 {dropdownOptions && <Dropdown
                                     options={dropdownOptions}
-                                    defaultSelectedKey={resultState.selectedRepresentationIndex}
+                                    defaultSelectedKey={resultState.selectedRepresentation}
                                     onChanged={item => {
-                                        this.state.results[i].selectedRepresentationIndex = item.key as string
+                                        this.state.results[i].selectedRepresentation = item.key as string
                                         this.setState(this.state)
                                     }}/>}
                             </div>

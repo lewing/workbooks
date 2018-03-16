@@ -45,10 +45,13 @@ interface InteractiveObjectValue {
 }
 
 class InteractiveObjectRenderer implements ResultRenderer {
+    public static readonly typeName = "Xamarin.Interactive.Representations.ReflectionInteractiveObject"
+
     constructor() {
         this.interact = this.interact.bind(this)
         this.buildProps = this.buildProps.bind(this)
     }
+
     getRepresentations(result: RepresentedResult, context: WorkbookShellContext) {
         const reps: ResultRendererRepresentation[] = []
 
@@ -56,7 +59,7 @@ class InteractiveObjectRenderer implements ResultRenderer {
             return reps
 
         for (const value of result.valueRepresentations) {
-            if (value.$type !== "Xamarin.Interactive.Representations.ReflectionInteractiveObject")
+            if (value.$type !== InteractiveObjectRenderer.typeName)
                 continue
 
             const interactiveObject = value as InteractiveObjectValue
@@ -70,6 +73,7 @@ class InteractiveObjectRenderer implements ResultRenderer {
         }
         return reps
     }
+
     async interact(rep: ResultRendererRepresentation):
         Promise<ResultRendererRepresentation>
     {
@@ -88,6 +92,7 @@ class InteractiveObjectRenderer implements ResultRenderer {
             interact: undefined
         })
     }
+
     buildProps(object: any, context: WorkbookShellContext): InteractiveObjectProps
     {
         let memberProps: any = {}
@@ -110,11 +115,11 @@ class InteractiveObjectRepresentation extends React.Component<InteractiveObjectP
     render() {
         const obj = this.props.object as any
         return (
-            <ul>
+            <ul key={this.props.object.handle}>
                 {Object.keys(obj).map(key => {
                     var member = obj[key]
                     const memberProps = this.props.memberProps[key];
-                    const ro = member.$type === RepresentedObjectRenderer.typeName;
+                    const ro = member.$type === RepresentedObjectRenderer.typeName
 
                     if (ro)
                         return <li key={key}><b>"{key}":</b> <RepresentedObjectRepresentation {...memberProps} /></li>
