@@ -35,11 +35,11 @@ interface EnumerableProps {
 }
 
 class EnumerableRenderer implements ResultRenderer {
+    static typeName = "Xamarin.Interactive.Representations.InteractiveEnumerable"
     constructor() {
         this.interact = this.interact.bind(this)
         this.buildProps = this.buildProps.bind (this)
     }
-    static typeName = "Xamarin.Interactive.Representations.InteractiveEnumerable"
     getRepresentations(result: RepresentedResult, context: WorkbookShellContext) {
         const reps: ResultRendererRepresentation[] = []
 

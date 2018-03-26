@@ -7,20 +7,6 @@
 import * as React from 'react'
 import { RepresentedResult } from '../evaluation';
 import { ResultRenderer, ResultRendererRepresentation } from '../rendering'
-import {
-    GroupedList,
-    IGroup
-  } from 'office-ui-fabric-react/lib/components/GroupedList/index';
-  import { IColumn } from 'office-ui-fabric-react/lib/DetailsList';
-  import { DetailsRow } from 'office-ui-fabric-react/lib/components/DetailsList/DetailsRow';
-  import {
-    FocusZone
-  } from 'office-ui-fabric-react/lib/FocusZone';
-  import {
-    Selection,
-    SelectionMode,
-    SelectionZone
-  } from 'office-ui-fabric-react/lib/utilities/selection/index';
 import { randomReactKey } from '../utils';
 import { WorkbookShellContext } from '../components/WorkbookShell';
 import {RepresentedObjectRenderer, RepresentedObjectRepresentation } from './RepresentedObjectRenderer';

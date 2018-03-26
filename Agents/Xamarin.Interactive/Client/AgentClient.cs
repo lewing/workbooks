@@ -240,7 +240,7 @@ namespace Xamarin.Interactive.Client
                 },
                 SessionCancellationToken))?.Result;
 
-        public Task<IInteractiveObject> InteractAsync(IInteractiveObject obj, object message)
+        public Task<IInteractiveObject> InteractAsync (IInteractiveObject obj, object message)
             => InteractAsync (obj.Handle, message);
 
         public async Task SetLogLevelAsync (LogLevel newLogLevel)

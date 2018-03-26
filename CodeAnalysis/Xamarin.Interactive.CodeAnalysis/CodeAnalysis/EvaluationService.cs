@@ -355,12 +355,12 @@ namespace Xamarin.Interactive.CodeAnalysis
             return model;
         }
 
-        public Task<IInteractiveObject> InteractAsync(
+        public Task<IInteractiveObject> InteractAsync (
             long handle,
             int memberIndex = -1,
             int representationIndex = -1,
             CancellationToken cancellationToken = default)
-            => agentConnection.Api.InteractAsync(handle,
+            => agentConnection.Api.InteractAsync (handle,
                 memberIndex < 0 ?
                     (object) new InteractiveObject.ReadAllMembersInteractMessage () :
                     new InteractiveObject.InteractMessage {

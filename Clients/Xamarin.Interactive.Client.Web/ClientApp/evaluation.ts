@@ -75,7 +75,6 @@ export interface RepresentedResult {
     interact?: ((handle: string) => Promise<any>)
 }
 
-
 export interface CapturedOutputSegment extends ICodeCellEvent {
     fileDescriptor: number
     value: string
